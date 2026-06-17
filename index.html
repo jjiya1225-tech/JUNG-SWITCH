@@ -266,8 +266,7 @@
         <h3>견적 목록 <span class="cnt" id="cartCnt">0건</span></h3>
         <div id="cartList"><div class="empty">담은 항목이 없습니다.</div></div>
         <div class="priceline tot"><span>총 합계 (VAT 별도)</span><span id="grandTotal">₩0</span></div>
-        <button class="btn primary acts" onclick="openDoc('quote')">📄 견적서</button>
-        <button class="btn ghost" onclick="openDoc('order')">🧾 발주서</button>
+        <button class="btn primary acts" onclick="openDoc('quote')">📄 견적서 만들기</button>
       </section>
     </aside>
   </div>
@@ -293,8 +292,7 @@
 <div class="overlay" id="overlay">
   <div class="doc">
     <div class="dochead">
-      <div class="tabs"><button id="tabQuote" class="on" onclick="switchDoc('quote')">견적서</button>
-      <button id="tabOrder" onclick="switchDoc('order')">발주서</button></div>
+      <div class="tabs"><span style="font-weight:700;font-size:15px">📄 견적서</span></div>
       <button class="x" onclick="closeDoc()">×</button></div>
     <div id="docBody"></div>
     <div class="docfoot"><button class="btn ghost" onclick="downloadDoc()" style="margin-top:0">HTML 다운로드</button>
@@ -496,9 +494,10 @@ function addToCart(){
   const c=colorObj(),m=matObj();
   const q=Math.max(1,parseInt(document.getElementById('qty').value)||1);
   const wb=DATA.wallbox.find(w=>w.id===state.wallbox);
-  cart.push({color:c.ko,material:m.name,
+  cart.push({color:c.ko,material:m.name,colorHex:c.hex,colorDark:c.dark,
     frameType:state.frameType==='cube'?'노출형 LS Cube':'매립형 LS990',
     gang:state.gang,mods:state.mods.map(mid=>funcByName(mid).name),
+    modTypes:state.mods.map(mid=>funcByName(mid).type),
     framePrice:framePrice(),funcsPrice:funcsPrice(),
     wallbox:wb?wb.name:null,wallboxPrice:wallboxPrice(),
     unit:setPrice(),qty:q});
@@ -522,26 +521,44 @@ function buildDocItems(){
   if(cart.length)return cart;
   if(!validity().ok)return [];
   const c=colorObj(),m=matObj();const wb=DATA.wallbox.find(w=>w.id===state.wallbox);
-  return [{color:c.ko,material:m.name,frameType:state.frameType==='cube'?'노출형 LS Cube':'매립형 LS990',
-    gang:state.gang,mods:state.mods.map(mid=>funcByName(mid).name),wallbox:wb?wb.name:null,
+  return [{color:c.ko,material:m.name,colorHex:c.hex,colorDark:c.dark,
+    frameType:state.frameType==='cube'?'노출형 LS Cube':'매립형 LS990',
+    gang:state.gang,mods:state.mods.map(mid=>funcByName(mid).name),
+    modTypes:state.mods.map(mid=>funcByName(mid).type),wallbox:wb?wb.name:null,
     unit:setPrice(),qty:Math.max(1,parseInt(document.getElementById('qty').value)||1)}];
 }
-function docHTML(type){
+function framePreviewSVG(hex,dark,types){
+  const line=dark?'rgba(255,255,255,.92)':'rgba(0,0,0,.6)';
+  const n=types.length, cw=80, ch=110, pad=9, gap=5;
+  const W=pad*2+n*cw+(n-1)*gap, H=pad*2+ch;
+  let mods='';
+  types.forEach((t,i)=>{
+    const x=pad+i*(cw+gap), y=pad;
+    mods+=`<rect x="${x}" y="${y}" width="${cw}" height="${ch}" rx="5" fill="${dark?'rgba(255,255,255,.05)':'rgba(0,0,0,.02)'}"/>`;
+    mods+=`<g transform="translate(${x},${y}) scale(${cw/100},${ch/104})">${faceSVG(t,line)}</g>`;
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" style="max-width:100%;height:auto">`+
+    `<rect x="0" y="0" width="${W}" height="${H}" rx="9" fill="${hex}" stroke="rgba(0,0,0,.15)"/>${mods}</svg>`;
+}
+function docHTML(){
   const items=buildDocItems();
   if(!items.length)return '<div class="pdoc"><p style="color:#b5532b">구성을 완료(모든 위치 기능 + 매립박스)하거나 견적 목록에 담은 뒤 출력하세요.</p></div>';
   const sub=items.reduce((a,it)=>a+it.unit*it.qty,0);
   const vat=Math.round(sub*0.1),tot=sub+vat;
   const today=new Date().toLocaleDateString('ko-KR');
-  const no=(type==='quote'?'Q':'PO')+'-'+Date.now().toString().slice(-6);
-  const title=type==='quote'?'견 적 서':'발 주 서';
-  const party=type==='quote'?'수신':'공급처';
+  const no='Q-'+Date.now().toString().slice(-6);
+  const previews=items.map((it,i)=>
+    `<div style="text-align:center;flex:none">${it.modTypes?framePreviewSVG(it.colorHex,it.colorDark,it.modTypes):''}
+     <div style="font-size:11px;color:#666;margin-top:5px">${i+1}. LS990 ${it.color} · ${it.gang}구</div></div>`).join('');
   const rows=items.map((it,i)=>`<tr><td class="num">${i+1}</td>
     <td>JUNG LS990 · ${it.color}<br><span style="color:#888;font-size:11px">${it.frameType} · ${it.material} · ${it.gang}구</span><br>
     <span style="color:#888;font-size:11px">${it.mods.join(' / ')}${it.wallbox?' / '+it.wallbox:''}</span></td>
     <td class="num">${it.qty}</td><td class="num">${won(it.unit)}</td><td class="num">${won(it.unit*it.qty)}</td></tr>`).join('');
-  return `<div class="pdoc"><h1>${title}</h1>
-    <div class="meta"><div>문서번호: ${no}<br>${party}: ____________________ 귀하<br>현장/프로젝트: ____________________</div>
+  return `<div class="pdoc"><h1>견 적 서</h1>
+    <div class="meta"><div>문서번호: ${no}<br>수신: ____________________ 귀하<br>현장/프로젝트: ____________________</div>
     <div style="text-align:right">작성일: ${today}<br>공급자: 칸트라이팅<br>담당: ____________ / TEL ____________</div></div>
+    <div style="margin:4px 0 18px"><div style="font-size:12px;font-weight:700;color:#444;margin-bottom:8px">구성 미리보기</div>
+      <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">${previews}</div></div>
     <table><thead><tr><th class="num">No</th><th>품목</th><th class="num">수량(세트)</th><th class="num">단가</th><th class="num">금액</th></tr></thead>
     <tbody>${rows}
     <tr><td colspan="4" class="num">공급가액</td><td class="num">${won(sub)}</td></tr>
@@ -551,26 +568,23 @@ function docHTML(type){
     ※ 매립박스 구매 시 배선기구 설치용 피스 포함. 프레임 구 수 = 커버 수로 발주해 주세요.<br>
     ※ 견적 유효기간: 작성일로부터 30일.</div></div>`;
 }
-function openDoc(type){docType=type;switchDoc(type);document.getElementById('overlay').classList.add('on');}
-function switchDoc(type){docType=type;
-  document.getElementById('tabQuote').classList.toggle('on',type==='quote');
-  document.getElementById('tabOrder').classList.toggle('on',type==='order');
-  document.getElementById('docBody').innerHTML=docHTML(type);}
+function openDoc(type){docType='quote';switchDoc();document.getElementById('overlay').classList.add('on');}
+function switchDoc(){document.getElementById('docBody').innerHTML=docHTML();}
 function closeDoc(){document.getElementById('overlay').classList.remove('on');}
 function printDoc(){const w=window.open('','_blank');
-  w.document.write(`<html><head><meta charset="utf-8"><title>${docType==='quote'?'견적서':'발주서'}</title>
+  w.document.write(`<html><head><meta charset="utf-8"><title>견적서</title>
   <style>body{font-family:-apple-system,"Noto Sans KR",sans-serif;padding:40px;color:#1a1a1a}h1{font-size:24px}
   table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px}th,td{border:1px solid #ccc;padding:8px 10px;vertical-align:top}
   .num{text-align:right}th{background:#f4f4f2}.totrow td{font-weight:800;background:#fafaf8}
   .meta{display:flex;justify-content:space-between;margin:16px 0;font-size:13px;color:#555}.note{font-size:11px;color:#888;margin-top:16px;line-height:1.6}</style></head>
   <body>${docHTML(docType)}</body></html>`);
   w.document.close();w.focus();setTimeout(()=>w.print(),300);}
-function downloadDoc(){const html=`<html><head><meta charset="utf-8"><title>${docType==='quote'?'견적서':'발주서'}</title>
+function downloadDoc(){const html=`<html><head><meta charset="utf-8"><title>견적서</title>
   <style>body{font-family:"Noto Sans KR",sans-serif;padding:40px;color:#1a1a1a}h1{font-size:24px}table{width:100%;border-collapse:collapse;font-size:12.5px}
   th,td{border:1px solid #ccc;padding:8px 10px;vertical-align:top}.num{text-align:right}th{background:#f4f4f2}.totrow td{font-weight:800}
   .meta{display:flex;justify-content:space-between;margin:16px 0;font-size:13px;color:#555}.note{font-size:11px;color:#888;margin-top:16px}</style></head><body>${docHTML(docType)}</body></html>`;
   const blob=new Blob([html],{type:'text/html'});const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);a.download=(docType==='quote'?'견적서':'발주서')+'_'+new Date().toISOString().slice(0,10)+'.html';a.click();}
+  a.href=URL.createObjectURL(blob);a.download='견적서_'+new Date().toISOString().slice(0,10)+'.html';a.click();}
 
 function resetConfig(){state={material:DATA.materials[0].id,color:DATA.materials[0].colors[0].name,
   frameType:'ls990',gang:1,mods:[null],wallbox:null};document.getElementById('qty').value=1;renderAll();}
