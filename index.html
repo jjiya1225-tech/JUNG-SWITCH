@@ -59,15 +59,12 @@
   .builder{margin-top:18px}
   .stage{display:flex;justify-content:center;padding:20px 8px 8px;overflow-x:auto}
   .wall{background:#edece8;border-radius:14px;padding:26px;box-shadow:inset 0 2px 10px rgba(0,0,0,.06)}
-  .frame{display:flex;gap:8px;border-radius:8px;padding:0;position:relative}
-  .module{width:96px;height:96px;border-radius:7px;display:flex;align-items:center;justify-content:center;
-    position:relative;flex:none;background:#fff;border:1px solid rgba(0,0,0,.07);box-shadow:0 2px 6px rgba(0,0,0,.10);
-    cursor:pointer;overflow:hidden;transition:.15s}
-  .module:hover{box-shadow:0 3px 12px rgba(0,0,0,.18)}
-  .module .modimg{width:100%;height:100%;object-fit:contain}
-  .module svg{width:78px;height:90px}
-  .module.empty-mod{background:#f7f7f4;border:1.5px dashed var(--accent2)}
-  .module .empty-ic{font-size:30px;font-weight:300;color:var(--accent2)}
+  .frame{display:flex;gap:2px;border-radius:8px;padding:8px;box-shadow:0 2px 8px rgba(0,0,0,.18);position:relative}
+  .module{width:88px;height:120px;border-radius:4px;display:flex;align-items:center;justify-content:center;
+    position:relative;flex:none;cursor:pointer;transition:.15s}
+  .module svg{width:78px;height:104px}
+  .module.empty-mod{border:1.5px dashed rgba(127,127,127,.55)}
+  .module .empty-ic{font-size:30px;font-weight:300;opacity:.6}
   .posbtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px}
   .posbtn{border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:8px;cursor:pointer;
     width:120px;text-align:center;font-family:inherit;transition:.15s}
@@ -146,8 +143,8 @@
     /* 미리보기: 폭에 맞춰 모듈 축소, 가로 스크롤 제거 */
     .stage{padding:14px 0 6px;overflow:visible}
     .wall{padding:14px;width:100%}
-    .frame{width:100%;gap:6px;justify-content:center}
-    .module{width:auto;flex:1 1 0;min-width:0;height:auto;aspect-ratio:1/1;max-width:96px}
+    .frame{width:100%;gap:2px;justify-content:center}
+    .module{width:auto;flex:1 1 0;min-width:0;height:auto;aspect-ratio:88/120;max-width:96px}
     .module svg{width:82%;height:82%}
     .module .empty-ic{font-size:22px}
     /* 위치별 기능 버튼: 미리보기와 동일하게 한 줄 */
@@ -370,14 +367,14 @@ function renderGang(){
 function renderBuilder(){
   const c=colorObj(); const line=c.dark?'rgba(255,255,255,.9)':'rgba(0,0,0,.62)';
   const frameEl=document.getElementById('frame');
-  frameEl.style.background='transparent';
-  frameEl.style.border='none';frameEl.style.boxShadow='none';
+  frameEl.style.background=c.hex;
+  frameEl.style.border=c.dark?'1px solid rgba(255,255,255,.12)':'1px solid rgba(0,0,0,.10)';
+  frameEl.style.boxShadow='0 2px 8px rgba(0,0,0,.18)';
   frameEl.innerHTML=state.mods.map((mid,i)=>{
-    if(!mid) return `<div class="module empty-mod" onclick="openPicker(${i})"><span class="empty-ic">＋</span></div>`;
+    if(!mid) return `<div class="module empty-mod" onclick="openPicker(${i})"><span class="empty-ic" style="color:${line}">＋</span></div>`;
     const f=funcByName(mid);
-    const inner=f.img?`<img class="modimg" src="images/${f.img}" alt="${f.name}" onerror="this.style.display='none'">`
-      :`<svg viewBox="0 0 100 104">${faceSVG(f.type,line)}</svg>`;
-    return `<div class="module" onclick="openPicker(${i})" title="${f.name}">${inner}</div>`;
+    const modBg=c.dark?'rgba(255,255,255,.04)':'rgba(0,0,0,.015)';
+    return `<div class="module" style="background:${modBg}" onclick="openPicker(${i})" title="${f.name}"><svg viewBox="0 0 100 104">${faceSVG(f.type,line)}</svg></div>`;
   }).join('');
   document.getElementById('posbtns').innerHTML=state.mods.map((mid,i)=>{
     if(!mid) return `<button class="posbtn empty" onclick="openPicker(${i})"><div class="pi">${i+1}번 위치</div><div class="pn">＋ 기능 선택</div></button>`;
@@ -480,12 +477,10 @@ function renderThumbs(){
   const c=colorObj(),line=c.dark?'rgba(255,255,255,.9)':'rgba(0,0,0,.62)';
   const cat=FCATS.find(x=>x.id===pickCat);
   const fns=priceObj().functions.filter(f=>cat.types.includes(f.type));
-  document.getElementById('thumbs').innerHTML=fns.map(f=>{
-    const vis=f.img?`<img class="thumbimg" src="images/${f.img}" alt="${f.name}" onerror="this.style.display='none'">`
-      :`<svg viewBox="0 0 100 104">${faceSVG(f.type,line)}</svg>`;
-    return `<div class="thumb ${state.mods[pickPos]===f.name?'sel':''}" onclick="selectFunc(${pickPos},'${f.name.replace(/'/g,"\\'")}')">
-      <div class="tc">${vis}</div>
-      <div class="tn">${f.name}</div><div class="tp">${won(f.price)}</div></div>`;}).join('');
+  document.getElementById('thumbs').innerHTML=fns.map(f=>
+    `<div class="thumb ${state.mods[pickPos]===f.name?'sel':''}" onclick="selectFunc(${pickPos},'${f.name.replace(/'/g,"\\'")}')">
+      <div class="tc" style="background:${c.hex}"><svg viewBox="0 0 100 104">${faceSVG(f.type,line)}</svg></div>
+      <div class="tn">${f.name}</div><div class="tp">${won(f.price)}</div></div>`).join('');
 }
 function selectFunc(pos,nm){state.mods[pos]=nm;closePicker();renderBuilder();renderQuote();}
 function closePicker(){document.getElementById('pickOverlay').classList.remove('on');}
