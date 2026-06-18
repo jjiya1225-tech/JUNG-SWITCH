@@ -1,50 +1,353 @@
-<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>칸트라이팅 - 단가 산정툴 (내부용)</title>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JUNG 융스위치 실시간 견적 · 발주</title>
 <style>
- body{font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;background:#f4f4f2;color:#1a1a1a;margin:0;padding:24px;line-height:1.5}
- .wrap{max-width:860px;margin:0 auto}
- h1{font-size:20px;margin:0 0 4px}.sub{color:#666;font-size:13px;margin:0 0 18px}
- .panel{background:#fff;border:1px solid #e4e4e0;border-radius:12px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.05);margin-bottom:18px}
- textarea{width:100%;height:90px;font-family:monospace;font-size:12px;border:1px solid #ddd;border-radius:8px;padding:10px;box-sizing:border-box;resize:vertical}
- .btn{border:none;border-radius:9px;padding:11px 20px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
- .btn.primary{background:#111;color:#fff}.btn.ghost{background:#fff;border:1.5px solid #ddd;margin-left:8px}
- .err{color:#b5532b;font-size:13px;margin-top:8px}
- .pdoc h2{font-size:18px}
- .pdoc .meta{display:flex;justify-content:space-between;margin:12px 0;font-size:12.5px;color:#666}
- table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
- th,td{border:1px solid #ddd;padding:8px 10px;text-align:left;vertical-align:top}
- th{background:#f6f6f4}.num{text-align:right}.totrow td{font-weight:800;background:#fafaf8}
- .prev{display:flex;flex-wrap:wrap;gap:12px;margin:10px 0 16px}
- .prev .cap{font-size:11px;color:#666;text-align:center;margin-top:4px}
- .note{font-size:11px;color:#888;margin-top:12px;line-height:1.6}
- .fill{border:none;border-bottom:1px solid #999;font:inherit;color:#1a1a1a;min-width:150px;padding:1px 4px;outline:none;background:transparent}
- .fill:focus{border-bottom-color:#111}
- .setblock{border:1px solid #e4e4e0;border-radius:10px;padding:14px;margin:14px 0}
- .sethdr{font-weight:700;font-size:14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
- .sethdr span{font-size:12px;font-weight:600;color:#666;background:#f2f2ef;border-radius:6px;padding:2px 9px}
- .grp td{background:#faf8f4;font-size:11px;color:#888;font-weight:600}
- .setsub td{font-weight:700;background:#fafaf8}
- .grand{margin-top:6px}
- .printbar{margin-top:14px;text-align:right}
- @media print{
-   body{padding:0;background:#fff}
-   #inputPanel,h1,.sub,.err,.printbar{display:none!important}
-   #out .panel{border:none;box-shadow:none;padding:0;margin:0}
- }
-</style></head><body><div class="wrap">
-<h1>JUNG 융스위치 단가 산정툴 <span style="font-size:12px;background:#fbece6;color:#b5532b;border-radius:6px;padding:2px 8px">내부용</span></h1>
-<p class="sub">고객이 보낸 <b>구성 코드(JS1-...)</b>를 붙여넣고 산출하세요. 이 파일은 외부에 공개하지 마세요(단가 포함).</p>
-<div class="panel" id="inputPanel">
- <textarea id="code" placeholder="여기에 구성 코드를 붙여넣으세요 (예: JS1-eyJ...)"></textarea>
- <div style="margin-top:10px"><button class="btn primary" onclick="run()">단가 산출</button></div>
- <div class="err" id="err"></div>
+  :root{
+    --bg:#f4f4f2;--panel:#fff;--ink:#1a1a1a;--sub:#6b6b6b;--line:#e4e4e0;
+    --accent:#111;--accent2:#b08d4f;--ok:#1f7a4d;--radius:14px;
+    --shadow:0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+  header.top{background:rgba(255,255,255,.96);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:90}
+  header.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:64px;flex-wrap:wrap;padding-top:8px;padding-bottom:8px}
+  .stepnav{display:flex;gap:6px;flex-wrap:wrap}
+  .snav{border:1.5px solid var(--line);background:#fff;border-radius:18px;padding:6px 13px;font-size:12.5px;cursor:pointer;font-family:inherit;color:var(--sub);white-space:nowrap;transition:.15s}
+  .snav:hover{border-color:#bbb}
+  .snav.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .step{scroll-margin-top:96px}
+  .brand{display:flex;align-items:center;gap:12px;font-weight:800;letter-spacing:-.02em}
+  .brand .logo{width:34px;height:34px;border-radius:8px;background:var(--accent);color:#fff;
+    display:grid;place-items:center;font-size:13px;font-weight:800}
+  .brand small{display:block;font-weight:500;color:var(--sub);font-size:11px;letter-spacing:0}
+  .hint{font-size:12px;color:var(--sub)}
+  .layout{display:grid;grid-template-columns:1fr 360px;gap:24px;padding:28px 0 80px}
+  @media(max-width:920px){.layout{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .step{padding:22px 24px;margin-bottom:18px}
+  .step h2{font-size:15px;display:flex;align-items:center;gap:10px;margin-bottom:16px;letter-spacing:-.01em}
+  .step h2 .n{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;
+    font-size:12px;display:grid;place-items:center;flex:none}
+  .step h2 .sublab{font-weight:500;color:var(--sub);font-size:12px}
+  .opt{border:1.5px solid var(--line);border-radius:10px;padding:13px 14px;cursor:pointer;
+    transition:.15s;background:#fff;text-align:left}
+  .opt:hover{border-color:#bdbdbd}
+  .opt.sel{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,0,0,.05)}
+  .opt.disabled{opacity:.4;pointer-events:none}
+  .opt .t{font-weight:600;font-size:13.5px}
+  .opt .d{font-size:11.5px;color:var(--sub);margin-top:3px}
+  .opt .p{font-size:12px;color:var(--accent2);font-weight:700;margin-top:6px}
+  /* series fixed */
+  .seriescard{display:flex;align-items:center;gap:14px;border:1.5px solid var(--accent);border-radius:10px;padding:14px 16px;background:#fafafa}
+  .seriescard .badge2{font-size:10px;background:var(--accent);color:#fff;border-radius:6px;padding:3px 8px;font-weight:700}
+  /* material tabs */
+  .mtabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+  .mtab{border:1.5px solid var(--line);background:#fff;border-radius:20px;padding:8px 15px;font-size:13px;
+    cursor:pointer;font-family:inherit;transition:.15s}
+  .mtab.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .swatches{display:flex;flex-wrap:wrap;gap:10px}
+  .sw{display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;width:74px}
+  .sw .dot{width:54px;height:54px;border-radius:10px;border:1.5px solid #d0d0cc;transition:.15s;overflow:hidden;display:flex}
+  .sw .dot img{width:100%;height:100%;object-fit:contain}
+  .sw.sel .dot{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,0,0,.08);transform:scale(1.04)}
+  .sw span{font-size:10.5px;color:var(--sub);text-align:center;line-height:1.25}
+  .formrow{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+  .formrow .opt{flex:1;min-width:150px}
+  .gangbar{display:flex;gap:8px;flex-wrap:wrap}
+  .gangbar .opt{min-width:62px;text-align:center}
+  .gangbar .opt .t{font-size:18px}
+  /* builder preview */
+  .builder{margin-top:18px}
+  .stage{display:flex;justify-content:center;padding:20px 8px 8px;overflow-x:auto}
+  .wall{background:transparent;padding:10px 0;box-shadow:none}
+  /* 프레임 플레이트 + 구(openings) */
+  .frame{display:inline-flex;gap:0;border-radius:10px;padding:10px;background:#e6e5e1;
+    box-shadow:0 3px 12px rgba(0,0,0,.10),inset 0 1px 2px rgba(255,255,255,.7);position:relative}
+  .opening{width:108px;height:108px;display:flex;align-items:center;justify-content:center;
+    overflow:hidden;cursor:pointer;flex:none;position:relative;background:#f3f3f1;transition:.12s}
+  .opening:first-child{border-radius:6px 0 0 6px}
+  .opening:last-child{border-radius:0 6px 6px 0}
+  .opening:only-child{border-radius:6px}
+  .opening img{width:100%;height:100%;object-fit:contain;display:block}
+  .opening svg{width:80%;height:88%}
+  .opening:hover{filter:brightness(.97)}
+  .opening.empty{background:#efeeec;box-shadow:inset 0 0 0 2px var(--accent2)}
+  .opening .op-plus{font-size:34px;font-weight:300;color:var(--accent2)}
+  /* 매립박스 수량 */
+  .wbopt{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1.5px solid var(--line);
+    border-radius:10px;padding:11px 13px;background:#fff;transition:.15s}
+  .wbopt.sel{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,0,0,.05)}
+  .wbopt .wbimg{width:46px;height:46px;object-fit:contain;flex:none;background:#f6f6f4;border-radius:6px}
+  .wbopt .wbinfo{flex:1;min-width:0}
+  .wbopt .wbinfo .t{font-weight:600;font-size:13px;word-break:keep-all}
+  .wbopt .wbinfo .d{font-size:11.5px;color:var(--sub);margin-top:2px}
+  .stepper.sm{flex:none}
+  .stepper.sm button{width:30px;height:30px;font-size:16px}
+  .stepper.sm .wbq{display:inline-grid;place-items:center;width:38px;height:30px;border-left:1px solid var(--line);border-right:1px solid var(--line);font-size:14px;font-weight:600}
+  .posbtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+  .posbtn{border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:8px;cursor:pointer;
+    width:120px;text-align:center;font-family:inherit;transition:.15s}
+  .posbtn:hover{border-color:#bbb}
+  .posbtn.empty{border-style:dashed;border-color:var(--accent2);color:var(--accent2)}
+  .posbtn .pi{font-size:11px;color:var(--sub)}
+  .posbtn .pn{font-size:12px;font-weight:600;margin-top:3px;line-height:1.25}
+  .posbtn .pp{font-size:11px;color:var(--accent2);font-weight:700;margin-top:3px}
+  /* aside */
+  aside{position:sticky;top:96px;align-self:start;max-height:calc(100vh - 110px);overflow:auto}
+  .quote{padding:20px 22px}
+  .quote h3{font-size:14px;margin-bottom:4px}
+  .quote .summ{font-size:12.5px;color:var(--sub);margin-bottom:14px;line-height:1.7}
+  .priceline{display:flex;justify-content:space-between;font-size:12.5px;padding:6px 0;border-top:1px dashed var(--line);gap:8px}
+  .priceline span:last-child{font-weight:600;white-space:nowrap}
+  .priceline.tot{border-top:2px solid var(--ink);margin-top:6px;padding-top:12px;font-size:17px;font-weight:800}
+  .qtyrow{display:flex;align-items:center;gap:10px;margin:14px 0}
+  .qtyrow label{font-size:13px;color:var(--sub)}
+  .stepper{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .stepper button{width:34px;height:34px;border:none;background:#fff;font-size:17px;cursor:pointer}
+  .stepper button:hover{background:#f2f2ef}
+  .stepper input{width:46px;text-align:center;border:none;border-left:1px solid var(--line);
+    border-right:1px solid var(--line);font-size:14px;height:34px}
+  .btn{display:block;width:100%;padding:13px;border:none;border-radius:10px;font-size:14px;
+    font-weight:700;cursor:pointer;font-family:inherit;transition:.15s}
+  .btn.primary{background:var(--accent);color:#fff}
+  .btn.primary:hover{background:#000}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.ghost{background:#fff;border:1.5px solid var(--line);color:var(--ink);margin-top:8px}
+  .btn.ghost:hover{border-color:#bbb}
+  .warn{font-size:12px;color:#b5532b;background:#fbf0ea;border:1px solid #f0d8cc;border-radius:8px;
+    padding:9px 11px;margin-top:10px;display:none}
+  .warn.show{display:block}
+  .cart{padding:18px 22px;margin-top:18px}
+  .cart h3{font-size:14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+  .cart h3 .cnt{font-size:11px;background:#eee;border-radius:20px;padding:2px 9px;color:var(--sub)}
+  .citem{border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin-bottom:9px;font-size:12.5px}
+  .citem .ct{font-weight:600;display:flex;justify-content:space-between;gap:8px}
+  .citem .cd{color:var(--sub);font-size:11.5px;margin-top:3px}
+  .citem .cb{display:flex;justify-content:space-between;align-items:center;margin-top:7px}
+  .citem .cb .pr{font-weight:700}
+  .citem .del{background:none;border:none;color:#c0392b;font-size:11.5px;cursor:pointer}
+  .empty{color:var(--sub);font-size:12.5px;text-align:center;padding:14px 0}
+  .acts{margin-top:14px}
+  .fill{border:none;border-bottom:1px solid #999;font:inherit;color:var(--ink);min-width:150px;padding:1px 4px;outline:none;background:transparent}
+  .fill:focus{border-bottom-color:var(--accent)}
+  .grp td{background:#faf8f4;font-size:11px;color:#888;font-weight:600}
+  /* mobile bar */
+  .mbar{display:none}
+  @media(max-width:920px){
+    .mbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:60;background:#fff;
+      border-top:1px solid var(--line);padding:10px 16px;gap:12px;align-items:center;
+      justify-content:space-between;box-shadow:0 -4px 18px rgba(0,0,0,.10)}
+    .mbar .mp{line-height:1.25}.mbar .mp small{font-size:11px;color:var(--sub);display:block}
+    .mbar .mp b{font-size:18px}.mbar .mbtns{display:flex;gap:8px}
+    .mbar .btn{width:auto;padding:12px 16px;margin:0}
+    body{padding-bottom:78px}aside{position:static}
+    header.top .hint{display:none}.step{padding:18px 16px}
+    #docBody{padding:18px 14px}.docfoot{flex-wrap:wrap}.docfoot .btn{flex:1;min-width:130px}
+  }
+  /* === 모바일: 가로 스크롤 금지 · 동일 위계는 한 줄 === */
+  @media(max-width:920px){
+    /* 모바일: 아임웹 컨테이너 여백을 벗어나 화면 끝까지(full-bleed) */
+    body{width:100vw;max-width:100vw;margin-left:calc(50% - 50vw);overflow-x:hidden}
+    .wrap{padding:0 12px}
+    /* 재질 탭 한 줄 */
+    .mtabs{flex-wrap:nowrap;gap:5px}
+    .mtab{flex:1 1 0;min-width:0;padding:8px 4px;font-size:12px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    /* 색상 스와치 한 줄 */
+    .swatches{flex-wrap:nowrap;gap:6px}
+    .sw{width:auto;flex:1 1 0;min-width:0}
+    .sw .dot{width:100%;max-width:54px;height:auto;aspect-ratio:1/1}
+    .sw span{font-size:9.5px;word-break:keep-all}
+    /* 프레임 형태 한 줄 */
+    .formrow{gap:7px}
+    .formrow .opt{min-width:0;flex:1 1 0}
+    /* 구 수 한 줄 */
+    .gangbar{flex-wrap:nowrap;gap:6px}
+    .gangbar .opt{flex:1 1 0;min-width:0;padding:9px 2px}
+    .gangbar .opt .t{font-size:16px}
+    /* 미리보기: 폭에 맞춰 모듈 축소, 가로 스크롤 제거 */
+    .stage{padding:14px 0 6px;overflow:visible}
+    .wall{padding:14px;width:100%}
+    .frame{width:100%;justify-content:center;padding:8px}
+    .opening{width:auto;flex:1 1 0;min-width:0;height:auto;aspect-ratio:1/1;max-width:108px}
+    .module svg{width:82%;height:82%}
+    .module .empty-ic{font-size:22px}
+    /* 위치별 기능 버튼: 미리보기와 동일하게 한 줄 */
+    .posbtns{flex-wrap:nowrap;gap:5px;align-items:stretch}
+    .posbtn{width:auto;flex:1 1 0;min-width:0;padding:7px 3px;display:flex;flex-direction:column;justify-content:center}
+    .posbtn .pi{font-size:9px}
+    .posbtn .pn{font-size:10px;word-break:keep-all}
+    .posbtn .pp{font-size:9.5px}
+    /* 매립박스 한 줄에 2개 */
+    #wallboxOpts{grid-template-columns:1fr !important}
+    #wallboxOpts .opt{padding:11px 10px}
+    #wallboxOpts .opt .t{font-size:12.5px;word-break:keep-all}
+  }
+  @media(max-width:380px){
+    .mtab{font-size:11px;padding:7px 2px}
+    .sw span{font-size:9px}
+    .posbtn .pn{font-size:9px}
+  }
+  /* overlay/modal */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:2147483600;
+    align-items:flex-start;justify-content:center;padding:30px 16px;overflow:auto}
+  .overlay.on{display:flex}
+  .sheet{background:#fff;border-radius:12px;max-width:720px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .sheet .sh{padding:15px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+  .sheet .sh h3{font-size:15px}.sheet .sh .x{background:none;border:none;font-size:22px;cursor:pointer;color:var(--sub)}
+  .ptabs{display:flex;flex-wrap:wrap;gap:7px;padding:14px 20px 0}
+  .ptab{border:1.5px solid var(--line);background:#fff;border-radius:18px;padding:6px 13px;font-size:12.5px;
+    cursor:pointer;font-family:inherit;transition:.15s;color:var(--ink);white-space:nowrap}
+  .ptab.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .ptab b{font-weight:600;opacity:.55;margin-left:4px;font-size:11px}
+  .ptab.on b{opacity:.85}
+  .thumbs{padding:14px 20px 18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;max-height:56vh;overflow:auto}
+  .thumb{border:1.5px solid var(--line);border-radius:10px;padding:10px;cursor:pointer;text-align:center;transition:.15s;background:#fff}
+  .thumb:hover{border-color:#999}
+  .thumb.sel{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,0,0,.06)}
+  .thumb .tc{height:84px;display:flex;align-items:center;justify-content:center;border-radius:7px;margin-bottom:7px;background:#f4f4f2;overflow:hidden}
+  .thumb .tc svg{width:54px;height:70px}
+  .thumb .tc .thumbimg{width:100%;height:100%;object-fit:contain}
+  .thumb .tn{font-size:11.5px;font-weight:600;line-height:1.25}
+  .thumb .tp{font-size:11px;color:var(--accent2);font-weight:700;margin-top:3px}
+  /* document */
+  .doc{background:#fff;border-radius:12px;max-width:760px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .doc .dochead{padding:16px 24px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+  .doc .dochead .x{background:none;border:none;font-size:22px;cursor:pointer;color:var(--sub)}
+  .tabs{display:flex;gap:6px}
+  .tabs button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 14px;font-size:13px;cursor:pointer;font-family:inherit}
+  .tabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  #docBody{padding:26px 30px}
+  .docfoot{padding:14px 24px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end}
+  .docfoot .btn{width:auto;padding:11px 20px}
+  .pdoc h1{font-size:22px;letter-spacing:-.02em}
+  .pdoc .meta{display:flex;justify-content:space-between;margin:14px 0 18px;font-size:12.5px;color:var(--sub)}
+  .pdoc table{width:100%;border-collapse:collapse;font-size:12.5px;border:1px solid #e2e2dd}
+  .pdoc th,.pdoc td{border-bottom:1px solid #ececea;padding:9px 12px;text-align:left;vertical-align:middle;background:#fff;color:var(--ink)}
+  .pdoc th{background:#f6f6f4;font-weight:700;color:#444}
+  .pdoc td.num,.pdoc th.num{text-align:right;width:64px;white-space:nowrap;color:var(--ink)}
+  .pdoc .grp td{background:#faf8f4;font-weight:700;color:#555;font-size:11.5px}
+  .pdoc .totrow td{font-weight:800;font-size:13px;background:#fafaf8}
+  .pdoc .note{font-size:11px;color:var(--sub);margin-top:14px;line-height:1.6}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><div class="logo">JU</div>
+      <div>JUNG 융스위치 구성기<small>칸트라이팅 · 견적 요청용</small></div></div>
+    <div class="stepnav" id="stepnav">
+      <button class="snav" data-s="1" onclick="goStep(1)">1 시리즈</button>
+      <button class="snav" data-s="2" onclick="goStep(2)">2 색상·마감</button>
+      <button class="snav" data-s="3" onclick="goStep(3)">3 구성</button>
+      <button class="snav" data-s="4" onclick="goStep(4)">4 매립박스</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="layout">
+    <main>
+      <section class="card step" id="step1">
+        <h2><span class="n">1</span> 시리즈</h2>
+        <div class="seriescard"><span class="badge2">LS990</span>
+          <div><div style="font-weight:700;font-size:14px">JUNG LS990</div>
+          <div style="font-size:12px;color:var(--sub)">취급 시리즈 · 플랫 디자인. 색상과 구성을 아래에서 선택하세요.</div></div></div>
+      </section>
+
+      <section class="card step" id="step2">
+        <h2><span class="n">2</span> 프레임 색상 · 마감 <span class="sublab" id="colorPick"></span></h2>
+        <div class="mtabs" id="mtabs"></div>
+        <div class="swatches" id="swatches"></div>
+      </section>
+
+      <section class="card step" id="step3">
+        <h2><span class="n">3</span> 프레임 구 수 · 위치별 기능</h2>
+        <div class="gangbar" id="gangbar"></div>
+        <div class="builder">
+          <div class="stage"><div class="wall"><div class="frame" id="frame"></div></div></div>
+          <div class="posbtns" id="posbtns"></div>
+        </div>
+      </section>
+
+      <section class="card step" id="step4">
+        <h2><span class="n">4</span> 매립박스 <span class="sublab">· 필수 (구 수 = 커버 수)</span></h2>
+        <div class="opts" id="wallboxOpts" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px"></div>
+      </section>
+    </main>
+
+    <aside>
+      <section class="card quote">
+        <h3>현재 구성</h3>
+        <div class="summ" id="summ"></div>
+        <div class="qtyrow"><label>세트 수량</label>
+          <div class="stepper"><button onclick="bumpQty(-1)">−</button>
+          <input id="qty" value="1" inputmode="numeric" onchange="syncQty()">
+          <button onclick="bumpQty(1)">+</button></div></div>
+        <div class="warn" id="warn"></div>
+        <button class="btn primary acts" id="addBtn" onclick="addToCart()">＋ 목록에 담기</button>
+        <button class="btn ghost" onclick="resetConfig()">선택 초기화</button>
+      </section>
+
+      <section class="card cart">
+        <h3>구성 목록 <span class="cnt" id="cartCnt">0건</span></h3>
+        <div id="cartList"><div class="empty">담은 항목이 없습니다.</div></div>
+        <button class="btn primary acts" onclick="openDoc('quote')">견적 요청서 만들기</button>
+        <div style="font-size:11.5px;color:var(--sub);margin-top:8px;line-height:1.5">단가는 표시되지 않습니다. 견적 요청서를 만들어 칸트라이팅에 보내주시면 단가를 산정해 드립니다.</div>
+      </section>
+    </aside>
+  </div>
 </div>
-<div id="out"></div>
+
+<!-- mobile bar -->
+<div class="mbar" id="mbar">
+  <div class="mp"><small id="mbLabel">JUNG 융스위치 구성</small><b id="mbCart" style="font-size:14px">0건 담음</b></div>
+  <div class="mbtns"><button class="btn primary" onclick="addToCart()">＋ 담기</button>
+  <button class="btn ghost" onclick="openDoc('quote')" style="margin-top:0">견적요청</button></div>
 </div>
+
+<!-- function picker -->
+<div class="overlay" id="pickOverlay">
+  <div class="sheet">
+    <div class="sh"><h3 id="pickTitle">기능 선택</h3><button class="x" onclick="closePicker()">×</button></div>
+    <div class="ptabs" id="ptabs"></div>
+    <div class="thumbs" id="thumbs"></div>
+  </div>
+</div>
+
+<!-- document -->
+<div class="overlay" id="overlay">
+  <div class="doc">
+    <div class="dochead">
+      <div class="tabs"><span style="font-weight:700;font-size:15px">견적 요청서</span></div>
+      <button class="x" onclick="closeDoc()">×</button></div>
+    <div id="docBody"></div>
+    <div class="docfoot"><button class="btn primary" onclick="printDoc()">PDF 저장</button></div>
+  </div>
+</div>
+
 <script>
-const DATA = {"materials": [{"id": "duro", "name": "듀로플라스틱", "colors": [{"name": "White", "ko": "화이트", "hex": "#f3f2ec", "dark": false, "img": "wh_0"}, {"name": "Ivory", "ko": "아이보리", "hex": "#ece3d0", "dark": false, "img": "iv_0"}, {"name": "Light Grey", "ko": "라이트그레이", "hex": "#c7c8c2", "dark": false, "img": "lg_0"}, {"name": "Black", "ko": "블랙", "hex": "#2a2a2a", "dark": true, "img": "bk_0"}]}, {"id": "matt", "name": "무광 래커", "colors": [{"name": "Matt Snow White", "ko": "무광 스노우화이트", "hex": "#ecebe4", "dark": false, "img": "mw_0"}, {"name": "Matt Graphite Black", "ko": "무광 그래파이트블랙", "hex": "#37383b", "dark": true, "img": "mb_0"}]}, {"id": "metal", "name": "메탈", "colors": [{"name": "Stainless Steel", "ko": "스테인리스 스틸", "hex": "#b9bdc1", "dark": false, "img": "ss_0"}, {"name": "Aluminium", "ko": "알루미늄", "hex": "#c6c9cd", "dark": false, "img": "al_0"}, {"name": "Anthracite", "ko": "안트라사이트", "hex": "#3c4042", "dark": true, "img": "an_0"}, {"name": "Aluminium Dark", "ko": "알루미늄 다크", "hex": "#4a4d50", "dark": true, "img": "ad_0"}]}, {"id": "brass", "name": "브라스", "colors": [{"name": "Classic Brass", "ko": "클래식 브라스", "hex": "#b3904f", "dark": false, "img": "cb_0"}, {"name": "Antique Brass", "ko": "앤티크 브라스", "hex": "#8a6e3d", "dark": true, "img": "ab_0"}]}], "prices": {"White": {"functions": [{"name": "1회로 스위치 (단로/3로)", "price": 18500, "type": "rocker", "img": "wh_0"}, {"name": "1회로 스위치 (4로)", "price": 34000, "type": "rocker", "img": "wh_27"}, {"name": "1회로 스위치 (일괄소등)", "price": 33000, "type": "rocker", "img": "wh_4"}, {"name": "1회로 스위치 (모멘터리 1접점)", "price": 20300, "type": "rocker", "img": "wh_22"}, {"name": "1회로 스위치 (모멘터리 2접점)", "price": 45200, "type": "rocker", "img": "wh_23"}, {"name": "2회로 스위치 (단로)", "price": 28700, "type": "rocker2", "img": "wh_1"}, {"name": "2회로 스위치 (3로)", "price": 43000, "type": "rocker2", "img": "wh_2"}, {"name": "2회로 스위치 (일괄소등)", "price": 69500, "type": "rocker2", "img": "wh_5"}, {"name": "2회로 스위치 (모멘터리 2접점)", "price": 43700, "type": "rocker2", "img": "wh_24"}, {"name": "2회로 스위치 (모멘터리 4접점)", "price": 48600, "type": "rocker2", "img": "wh_25"}, {"name": "3회로 스위치 (단로/3로)", "price": 63000, "type": "rocker3", "img": "wh_3"}, {"name": "로터리 스위치 위상제어 (일반500W / LED100W)", "price": 206800, "type": "rotary", "img": "wh_12"}, {"name": "로터리 스위치 (1-10V)", "price": 100600, "type": "rotary", "img": "wh_14"}, {"name": "로터리 스위치 (DALI + Tunable white)", "price": 310500, "type": "rotary", "img": "wh_13"}, {"name": "220V 콘센트", "price": 16100, "type": "socket", "img": "wh_6"}, {"name": "220V 방우형 콘센트", "price": 26800, "type": "socket", "img": "wh_7"}, {"name": "220V 콘센트(USB 결합형/A포트/고속충전)", "price": 134000, "type": "socket_usb", "img": "wh_8"}, {"name": "220V 콘센트(USB 결합형/C포트/고속충전)", "price": 134000, "type": "socket_usb", "img": "wh_9"}, {"name": "220V 콘센트(USB 결합형/A+C포트)", "price": 134000, "type": "socket_usb", "img": "wh_10"}, {"name": "TEL/LAN 소켓 1구", "price": 44500, "type": "data", "img": "wh_15"}, {"name": "TEL/LAN 소켓 2구", "price": 59300, "type": "data", "img": "wh_16"}, {"name": "TV 소켓 (1방)", "price": 40100, "type": "tv", "img": "wh_17"}, {"name": "TV 소켓 (2방)", "price": 40400, "type": "tv", "img": "wh_18"}, {"name": "스피커 잭 (1쌍)", "price": 30800, "type": "speaker", "img": "wh_19"}, {"name": "스피커 잭 (2쌍)", "price": 43400, "type": "speaker", "img": "wh_20"}, {"name": "Blank 커버 (매립박스 제외)", "price": 14200, "type": "blank", "img": "wh_26"}, {"name": "USB Charger 소켓(A+C포트)", "price": 125700, "type": "usb", "img": "wh_11"}, {"name": "HDMI소켓 1구", "price": 154000, "type": "hdmi", "img": "wh_21"}], "frame_ls990": {"1": 5600, "2": 9800, "3": 14700, "4": 26300, "5": 37800}, "frame_cube": {"1": 22000, "2": 40300, "3": 64700}}, "Ivory": {"functions": [{"name": "1회로 스위치 (단로/3로)", "price": 18500, "type": "rocker", "img": "iv_0"}, {"name": "1회로 스위치 (4로)", "price": 34000, "type": "rocker", "img": "iv_27"}, {"name": "1회로 스위치 (일괄소등 전용)", "price": 33000, "type": "rocker", "img": "iv_4"}, {"name": "1회로 스위치 (모멘터리 1접점)", "price": 20300, "type": "rocker", "img": "iv_22"}, {"name": "1회로 스위치 (모멘터리 2접점)", "price": 45200, "type": "rocker", "img": "iv_23"}, {"name": "2회로 스위치 (단로)", "price": 28700, "type": "rocker2", "img": "iv_1"}, {"name": "2회로 스위치 (3로)", "price": 43000, "type": "rocker2", "img": "iv_2"}, {"name": "2회로 스위치 (일괄소등)", "price": 69500, "type": "rocker2", "img": "iv_5"}, {"name": "2회로 스위치 (모멘터리 2접점)", "price": 43700, "type": "rocker2", "img": "iv_24"}, {"name": "2회로 스위치 (모멘터리 4접점)", "price": 48600, "type": "rocker2", "img": "iv_25"}, {"name": "3회로 스위치 (단로/3로)", "price": 63000, "type": "rocker3", "img": "iv_3"}, {"name": "로터리 스위치 위상제어 (일반500W / LED100W)", "price": 206800, "type": "rotary", "img": "iv_12"}, {"name": "로터리 스위치 (1-10V)", "price": 100600, "type": "rotary", "img": "iv_14"}, {"name": "로터리 스위치 (DALI + Tunable white)", "price": 310500, "type": "rotary", "img": "iv_13"}, {"name": "220V 콘센트", "price": 16100, "type": "socket", "img": "iv_6"}, {"name": "220V 방우형 콘센트", "price": 26800, "type": "socket", "img": "iv_7"}, {"name": "220V 콘센트(USB 결합형/A포트/고속충전)", "price": 134000, "type": "socket_usb", "img": "iv_8"}, {"name": "220V 콘센트(USB 결합형/C포트/고속충전)", "price": 134000, "type": "socket_usb", "img": "iv_9"}, {"name": "220V 콘센트(USB 결합형/A+C포트)", "price": 134000, "type": "socket_usb", "img": "iv_10"}, {"name": "TEL/LAN 소켓 1구", "price": 44500, "type": "data", "img": "iv_15"}, {"name": "TEL/LAN 소켓 2구", "price": 59300, "type": "data", "img": "iv_16"}, {"name": "TV 소켓 (1방)", "price": 35800, "type": "tv", "img": "iv_17"}, {"name": "TV 소켓 (2방)", "price": 36100, "type": "tv", "img": "iv_18"}, {"name": "스피커 잭 (1쌍)", "price": 30800, "type": "speaker", "img": "iv_19"}, {"name": "Blank 커버 (매립박스 제외)", "price": 14400, "type": "blank", "img": "iv_26"}, {"name": "USB Charger 소켓(A+C포트)", "price": 125700, "type": "usb", "img": "iv_11"}, {"name": "HDMI소켓 1구", "price": 169600, "type": "hdmi", "img": "iv_21"}], "frame_ls990": {"1": 5600, "2": 9800, "3": 14700, "4": 26300, "5": 37800}, "frame_cube": {"1": 22000, "2": 40300, "3": 64700}}, "Light Grey": {"functions": [{"name": "1회로 스위치 (단로/3로)", "price": 23800, "type": "rocker", "img": "lg_0"}, {"name": "1회로 스위치 (4로)", "price": 39300, "type": "rocker", "img": "lg_27"}, {"name": "1회로 스위치 (일괄소등)", "price": 38300, "type": "rocker", "img": "lg_4"}, {"name": "1회로 스위치 (모멘터리 1접점)", "price": 25600, "type": "rocker", "img": "lg_22"}, {"name": "1회로 스위치 (모멘터리 2접점)", "price": 50500, "type": "rocker", "img": "lg_23"}, {"name": "2회로 스위치 (단로)", "price": 34600, "type": "rocker2", "img": "lg_1"}, {"name": "2회로 스위치 (3로)", "price": 48900, "type": "rocker2", "img": "lg_2"}, {"name": "2회로 스위치 (일괄소등)", "price": 75400, "type": "rocker2", "img": "lg_5"}, {"name": "2회로 스위치 (모멘터리 2접점)", "price": 49600, "type": "rocker2", "img": "lg_24"}, {"name": "2회로 스위치 (모멘터리 4접점)", "price": 54500, "type": "rocker2", "img": "lg_25"}, {"name": "3회로 스위치 (단로/3로)", "price": 68800, "type": "rocker3", "img": "lg_3"}, {"name": "로터리 스위치 위상제어 (일반500W / LED100W)", "price": 215100, "type": "rotary", "img": "lg_12"}, {"name": "로터리 스위치 (1-10V)", "price": 108900, "type": "rotary", "img": "lg_14"}, {"name": "로터리 스위치 (DALI + Tunable white)", "price": 318800, "type": "rotary", "img": "lg_13"}, {"name": "220V 콘센트", "price": 21000, "type": "socket", "img": "lg_6"}, {"name": "220V 방우형 콘센트", "price": 29700, "type": "socket", "img": "lg_7"}, {"name": "220V 콘센트(USB 결합형/A포트/고속충전)", "price": 139700, "type": "socket_usb", "img": "lg_8"}, {"name": "220V 콘센트(USB 결합형/C포트/고속충전)", "price": 139700, "type": "socket_usb", "img": "lg_9"}, {"name": "220V 콘센트(USB 결합형/A+C포트)", "price": 139700, "type": "socket_usb", "img": "lg_10"}, {"name": "TEL/LAN 소켓 1구", "price": 50100, "type": "data", "img": "lg_15"}, {"name": "TEL/LAN 소켓 2구", "price": 62400, "type": "data", "img": "lg_16"}, {"name": "TV 소켓 (1방)", "price": 43900, "type": "tv", "img": "lg_17"}, {"name": "TV 소켓 (2방)", "price": 44200, "type": "tv", "img": "lg_18"}, {"name": "스피커 잭 (1쌍)", "price": 35700, "type": "speaker", "img": "lg_19"}, {"name": "Blank 커버 (매립박스 제외)", "price": 19800, "type": "blank", "img": "lg_26"}, {"name": "USB Charger 소켓(A+C포트)", "price": 130200, "type": "usb", "img": "lg_11"}, {"name": "HDMI소켓 1구", "price": 159800, "type": "hdmi", "img": "lg_21"}], "frame_ls990": {"1": 9200, "2": 15000, "3": 23600, "4": 35100, "5": 49000}, "frame_cube": {}}, "Black": {"functions": [{"name": "1회로 스위치 (단로/3로)", "price": 23800, "type": "rocker", "img": "bk_0"}, {"name": "1회로 스위치 (4로)", "price": 39300, "type": "rocker", "img": "bk_27"}, {"name": "1회로 스위치 (일괄소등)", "price": 38300, "type": "rocker", "img": "bk_4"}, {"name": "1회로 스위치 (모멘터리 1접점)", "price": 25600, "type": "rocker", "img": "bk_22"}, {"name": "1회로 스위치 (모멘터리 2접점)", "price": 50500, "type": "rocker", "img": "bk_23"}, {"name": "2회로 스위치 (단로)", "price": 34600, "type": "rocker2", "img": "bk_1"}, {"name": "2회로 스위치 (3로)", "price": 48900, "type": "rocker2", "img": "bk_2"}, {"name": "2회로 스위치 (일괄소등)", "price": 75400, "type": "rocker2", "img": "bk_5"}, {"name": "2회로 스위치 (모멘터리 2접점)", "price": 49600, "type": "rocker2", "img": "bk_24"}, {"name": "2회로 스위치 (모멘터리 4접점)", "price": 54500, "type": "rocker2", "img": "bk_25"}, {"name": "3회로 스위치 (단로/3로)", "price": 68800, "type": "rocker3", "img": "bk_3"}, {"name": "로터리 스위치 위상제어 (일반500W / LED100W)", "price": 215100, "type": "rotary", "img": "bk_12"}, {"name": "로터리 스위치 (1-10V)", "price": 108900, "type": "rotary", "img": "bk_14"}, {"name": "로터리 스위치 (DALI + Tunable white)", "price": 318800, "type": "rotary", "img": "bk_13"}, {"name": "220V 콘센트", "price": 21000, "type": "socket", "img": "bk_6"}, {"name": "220V 방우형 콘센트", "price": 29700, "type": "socket", "img": "bk_7"}, {"name": "220V 콘센트(USB 결합형/A포트/고속충전)", "price": 139700, "type": "socket_usb", "img": "bk_8"}, {"name": "220V 콘센트(USB 결합형/C포트/고속충전)", "price": 139700, "type": "socket_usb", "img": "bk_9"}, {"name": "220V 콘센트(USB 결합형/A+C포트)", "price": 139700, "type": "socket_usb", "img": "bk_10"}, {"name": "TEL/LAN 소켓 1구", "price": 50100, "type": "data", "img": "bk_15"}, {"name": "TEL/LAN 소켓 2구", "price": 62400, "type": "data", "img": "bk_16"}, {"name": "TV 소켓 (1방)", "price": 43900, "type": "tv", "img": "bk_17"}, {"name": "TV 소켓 (2방)", "price": 44200, "type": "tv", "img": "bk_18"}, {"name": "스피커 잭 (1쌍)", "price": 35700, "type": "speaker", "img": "bk_19"}, {"name": "Blank 커버 (매립박스 제외)", "price": 19800, "type": "blank", "img": "bk_26"}, {"name": "USB Charger 소켓(A+C포트)", "price": 130200, "type": "usb", "img": "bk_11"}, {"name": "HDMI소켓 1구", "price": 159800, "type": "hdmi", "img": "bk_21"}], "frame_ls990": {"1": 9200, "2": 15000, "3": 23600, "4": 35100, "5": 49000}, "frame_cube": {"1": 28600, "2": 49400, "3": 79900}}, "Matt Snow White": {"functions": [{"name": "1회로 스위치 (단로/3로)", "price": 26700, "type": "rocker", "img": "mw_0"}, {"name": "1회로 스위치 (4로)", "price": 42200, "type": "rocker", "img": "mw_27"}, {"name": "1회로 스위치 (일괄소등)", "price": 41200, "type": "rocker", "img": "mw_4"}, {"name": "1회로 스위치 (모멘터리 1접점)", "price": 28500, "type": "rocker", "img": "mw_22"}, {"name": "1회로 스위치 (모멘터리 2접점)", "price": 53400, "type": "rocker", "img": "mw_23"}, {"name": "2회로 스위치 (단로)", "price": 37700, "type": "rocker2", "img": "mw_1"}, {"name": "2회로 스위치 (3로)", "price": 52000, "type": "rocker2", "img": "mw_2"}, {"name": "2회로 스위치 (일괄소등)", "price": 78500, "type": "rocker2", "img": "mw_5"}, {"name": "2회로 스위치 (모멘터리 2접점)", "price": 52700, "type": "rocker2", "img": "mw_24"}, {"name": "2회로 스위치 (모멘터리 4접점)", "price": 57600, "type": "rocker2", "img": "mw_25"}, {"name": "3회로 스위치 (단로/3로)", "price": 74200, "type": "rocker3", "img": "mw_3"}, {"name": "로터리 스위치 위상제어 (일반500W / LED100W)", "price": 227800, "type": "rotary", "img": "mw_12"}, {"name": "로터리 스위치 (1-10V)", "price": 121600, "type": "rotary", "img": "mw_14"}, {"name": "로터리 스위치 (DALI + Tunable white)", "price": 331500, "type": "rotary", "img": "mw_13"}, {"name": "220V 콘센트", "price": 28000, "type": "socket", "img": "mw_6"}, {"name": "220V 방우형 콘센트", "price": 38900, "type": "socket", "img": "mw_7"}, {"name": "220V 콘센트(USB 결합형/A포트/고속충전)", "price": 152300, "type": "socket_usb", "img": "mw_8"}, {"name": "220V 콘센트(USB 결합형/C포트/고속충전)", "price": 152300, "type": "socket_usb", "img": "mw_9"}, {"name": "220V 콘센트(USB 결합형/A+C포트)", "price": 152300, "type": "socket_usb", "img": "mw_10"}, {"name": "TEL/LAN 소켓 1구", "price": 53900, "type": "data", "img": "mw_15"}, {"name": "TEL/LAN 소켓 2구", "price": 66200, "type": "data", "img": "mw_16"}, {"name": "TV 소켓 (1방)", "price": 48800, "type": "tv", "img": "mw_17"}, {"name": "TV 소켓 (2방)", "price": 49100, "type": "tv", "img": "mw_18"}, {"name": "스피커 잭 (1쌍)", "price": 38700, "type": "speaker", "img": "mw_19"}, {"name": "Blank 커버 (매립박스 제외)", "price": 25300, "type": "blank", "img": "mw_26"}, {"name": "USB Charger 소켓(A+C포트)", "price": 134000, "type": "usb", "img": "mw_11"}, {"name": "HDMI소켓 1구", "price": 186800, "type": "hdmi", "img": "mw_21"}], "frame_ls990": {"1": 14000, "2": 20200, "3": 34500, "4": 55100, "5": 84500}, "frame_cube": {"1": 28600, "2": 49400, "3": 79900}}, "Matt Graphite Black": {"functions": [{"name": "1회로 스위치 (단로/3로)", "price": 26700, "type": "rocker", "img": "mb_0"}, {"name": "1회로 스위치 (4로)", "price": 42200, "type": "rocker", "img": "mb_27"}, {"name": "1회로 스위치 (일괄소등)", "price": 41200, "type": "rocker", "img": "mb_4"}, {"name": "1회로 스위치 (모멘터리 1접점)", "price": 28500, "type": "rocker", "img": "mb_22"}, {"name": "1회로 스위치 (모멘터리 2접점)", "price": 53400, "type": "rocker", "img": "mb_23"}, {"name": "2회로 스위치 (단로)", "price": 37700, "type": "rocker2", "img": "mb_1"}, {"name": "2회로 스위치 (3로)", "price": 52000, "type": "rocker2", "img": "mb_2"}, {"name": "2회로 스위치 (일괄소등)", "price": 78500, "type": "rocker2", "img": "mb_5"}, {"name": "2회로 스위치 (모멘터리 2접점)", "price": 52700, "type": "rocker2", "img": "mb_24"}, {"name": "2회로 스위치 (모멘터리 4접점)", "price": 57600, "type": "rocker2", "img": "mb_25"}, {"name": "3회로 스위치 (단로/3로)", "price": 74200, "type": "rocker3", "img": "mb_3"}, {"name": "로터리 스위치 위상제어 (일반500W / LED100W)", "price": 227800, "type": "rotary", "img": "mb_12"}, {"name": "로터리 스위치 (1-10V)", "price": 121600, "type": "rotary", "img": "mb_14"}, {"name": "로터리 스위치 (DALI + Tunable white)", "price": 331500, "type": "rotary", "img": "mb_13"}, {"name": "220V 콘센트", "price": 28000, "type": "socket", "img": "mb_6"}, {"name": "220V 방우형 콘센트", "price": 38900, "type": "socket", "img": "mb_7"}, {"name": "220V 콘센트(USB 결합형/A포트/고속충전)", "price": 152300, "type": "socket_usb", "img": "mb_8"}, {"name": "220V 콘센트(USB 결합형/C포트/고속충전)", "price": 152300, "type": "socket_usb", "img": "mb_9"}, {"name": "220V 콘센트(USB 결합형/A+C포트)", "price": 152300, "type": "socket_usb", "img": "mb_10"}, {"name": "TEL/LAN 소켓 1구", "price": 53900, "type": "data", "img": "mb_15"}, {"name": "TEL/LAN 소켓 2구", "price": 66200, "type": "data", "img": "mb_16"}, {"name": "TV 소켓 (1방)", "price": 48800, "type": "tv", "img": "mb_17"}, {"name": "TV 소켓 (2방)", "price": 49100, "type": "tv", "img": "mb_18"}, {"name": "스피커 잭 (1쌍)", "price": 38700, "type": "speaker", "img": "mb_19"}, {"name": "Blank 커버 (매립박스 제외)", "price": 25300, "type": "blank", "img": "mb_26"}, {"name": "USB Charger 소켓(A+C포트)", "price": 134000, "type": "usb", "img": "mb_11"}, {"name": "HDMI소켓 1구", "price": 186800, "type": "hdmi", "img": "mb_21"}], "frame_ls990": {"1": 14000, "2": 20200, "3": 34500, "4": 55100, "5": 84500}, "frame_cube": {"1": 28600, "2": 49400, "3": 79900}}, "Stainless Steel": {"functions": [{"name": "1회로 스위치 (단로/3로)", "price": 29400, "type": "rocker", "img": "ss_0"}, {"name": "1회로 스위치 (4로)", "price": 44900, "type": "rocker", "img": "ss_27"}, {"name": "1회로 스위치 (일괄소등)", "price": 43900, "type": "rocker", "img": "ss_4"}, {"name": "1회로 스위치 (모멘터리 1접점)", "price": 31200, "type": "rocker", "img": "ss_22"}, {"name": "1회로 스위치 (모멘터리 2접점)", "price": 56100, "type": "rocker", "img": "ss_23"}, {"name": "2회로 스위치 (단로)", "price": 40600, "type": "rocker2", "img": "ss_1"}, {"name": "2회로 스위치 (3로)", "price": 54900, "type": "rocker2", "img": "ss_2"}, {"name": "2회로 스위치 (일괄소등)", "price": 81400, "type": "rocker2", "img": "ss_5"}, {"name": "2회로 스위치 (모멘터리 2접점)", "price": 55600, "type": "rocker2", "img": "ss_24"}, {"name": "2회로 스위치 (모멘터리 4접점)", "price": 60500, "type": "rocker2", "img": "ss_25"}, {"name": "3회로 스위치 (단로/3로)", "price": 75400, "type": "rocker3", "img": "ss_3"}, {"name": "로터리 스위치 위상제어 (일반500W / LED100W)", "price": 244000, "type": "rotary", "img": "ss_12"}, {"name": "로터리 스위치 (1-10V)", "price": 137800, "type": "rotary", "img": "ss_14"}, {"name": "로터리 스위치 (DALI + Tunable white)", "price": 347700, "type": "rotary", "img": "ss_13"}, {"name": "220V 콘센트", "price": 31900, "type": "socket", "img": "ss_6"}, {"name": "220V 방우형 콘센트", "price": 40300, "type": "socket", "img": "ss_7"}, {"name": "220V 콘센트(USB 결합형/A포트/고속충전)", "price": 199600, "type": "socket_usb", "img": "ss_8"}, {"name": "220V 콘센트(USB 결합형/C포트/고속충전)", "price": 199600, "type": "socket_usb", "img": "ss_9"}, {"name": "220V 콘센트(USB 결합형/A+C포트)", "price": 199600, "type": "socket_usb", "img": "ss_10"}, {"name": "TEL/LAN 소켓 1구", "price": 57800, "type": "data", "img": "ss_15"}, {"name": "TEL/LAN 소켓 2구", "price": 81900, "type": "data", "img": "ss_16"}, {"name": "TV 소켓 (1방)", "price": 52000, "type": "tv", "img": "ss_17"}, {"name": "TV 소켓 (2방)", "price": 52300, "type": "tv", "img": "ss_18"}, {"name": "스피커 잭 (1쌍)", "price": 43400, "type": "speaker", "img": "ss_19"}, {"name": "스피커 잭 (2쌍)", "price": 54000, "type": "speaker", "img": "ss_20"}, {"name": "Blank 커버 (매립박스 제외)", "price": 28100, "type": "blank", "img": "ss_26"}, {"name": "USB Charger 소켓(A+C포트)", "price": 137900, "type": "usb", "img": "ss_11"}, {"name": "HDMI소켓 1구", "price": 167800, "type": "hdmi", "img": "ss_21"}], "frame_ls990": {"1": 23600, "2": 36400, "3": 60400, "4": 96600, "5": 153300}, "frame_cube": {"1": 31000, "2": 49400, "3": 83400}}, "Aluminium": {"functions": [{"name": "1회로 스위치 (단로/3로)", "price": 29400, "type": "rocker", "img": "al_0"}, {"name": "1회로 스위치 (4로)", "price": 44900, "type": "rocker", "img": "al_27"}, {"name": "1회로 스위치 (일괄소등)", "price": 43900, "type": "rocker", "img": "al_4"}, {"name": "1회로 스위치 (모멘터리 1접점)", "price": 31200, "type": "rocker", "img": "al_22"}, {"name": "1회로 스위치 (모멘터리 2접점)", "price": 56100, "type": "rocker", "img": "al_23"}, {"name": "2회로 스위치 (단로)", "price": 40600, "type": "rocker2", "img": "al_1"}, {"name": "2회로 스위치 (3로)", "price": 54900, "type": "rocker2", "img": "al_2"}, {"name": "2회로 스위치 (일괄소등)", "price": 81400, "type": "rocker2", "img": "al_5"}, {"name": "2회로 스위치 (모멘터리 2접점)", "price": 55600, "type": "rocker2", "img": "al_24"}, {"name": "2회로 스위치 (모멘터리 4접점)", "price": 60500, "type": "rocker2", "img": "al_25"}, {"name": "3회로 스위치 (단로/3로)", "price": 75400, "type": "rocker3", "img": "al_3"}, {"name": "로터리 스위치 위상제어 (일반500W / LED100W)", "price": 244000, "type": "rotary", "img": "al_12"}, {"name": "로터리 스위치 (1-10V)", "price": 137800, "type": "rotary", "img": "al_14"}, {"name": "로터리 스위치 (DALI + Tunable white)", "price": 347700, "type": "rotary", "img": "al_13"}, {"name": "220V 콘센트", "price": 31900, "type": "socket", "img": "al_6"}, {"name": "220V 방우형 콘센트", "price": 40300, "type": "socket", "img": "al_7"}, {"name": "220V 콘센트(USB 결합형/A포트/고속충전)", "price": 199600, "type": "socket_usb", "img": "al_8"}, {"name": "220V 콘센트(USB 결합형/C포트/고속충전)", "price": 199600, "type": "socket_usb", "img": "al_9"}, {"name": "220V 콘센트(USB 결합형/A+C포트)", "price": 199600, "type": "socket_usb", "img": "al_10"}, {"name": "TEL/LAN 소켓 1구", "price": 57800, "type": "data", "img": "al_15"}, {"name": "TEL/LAN 소켓 2구", "price": 81900, "type": "data", "img": "al_16"}, {"name": "TV 소켓 (1방)", "price": 52000, "type": "tv", "img": "al_17"}, {"name": "TV 소켓 (2방)", "price": 52300, "type": "tv", "img": "al_18"}, {"name": "스피커 잭 (1쌍)", "price": 43400, "type": "speaker", "img": "al_19"}, {"name": "스피커 잭 (2쌍)", "price": 54000, "type": "speaker", "img": "al_20"}, {"name": "Blank 커버 (매립박스 제외)", "price": 28100, "type": "blank", "img": "al_26"}, {"name": "USB Charger 소켓(A+C포트)", "price": 137900, "type": "usb", "img": "al_11"}, {"name": "HDMI소켓 1구", "price": 167800, "type": "hdmi", "img": "al_21"}], "frame_ls990": {"1": 23600, "2": 36400, "3": 60400, "4": 96600, "5": 153300}, "frame_cube": {"1": 31900, "2": 51600, "3": 83400}}, "Anthracite": {"functions": [{"name": "1회로 스위치 (단로/3로)", "price": 29400, "type": "rocker", "img": "an_0"}, {"name": "1회로 스위치 (4로)", "price": 44900, "type": "rocker", "img": "an_27"}, {"name": "1회로 스위치 (일괄소등)", "price": 43900, "type": "rocker", "img": "an_4"}, {"name": "1회로 스위치 (모멘터리 1접점)", "price": 31200, "type": "rocker", "img": "an_22"}, {"name": "1회로 스위치 (모멘터리 2접점)", "price": 56100, "type": "rocker", "img": "an_23"}, {"name": "2회로 스위치 (단로)", "price": 40600, "type": "rocker2", "img": "an_1"}, {"name": "2회로 스위치 (3로)", "price": 54900, "type": "rocker2", "img": "an_2"}, {"name": "2회로 스위치 (일괄소등)", "price": 81400, "type": "rocker2", "img": "an_5"}, {"name": "2회로 스위치 (모멘터리 2접점)", "price": 55600, "type": "rocker2", "img": "an_24"}, {"name": "2회로 스위치 (모멘터리 4접점)", "price": 60500, "type": "rocker2", "img": "an_25"}, {"name": "3회로 스위치 (단로/3로)", "price": 75400, "type": "rocker3", "img": "an_3"}, {"name": "로터리 스위치 위상제어 (일반500W / LED100W)", "price": 244000, "type": "rotary", "img": "an_12"}, {"name": "로터리 스위치 (1-10V)", "price": 137800, "type": "rotary", "img": "an_14"}, {"name": "로터리 스위치 (DALI + Tunable white)", "price": 347700, "type": "rotary", "img": "an_13"}, {"name": "220V 콘센트", "price": 31900, "type": "socket", "img": "an_6"}, {"name": "220V 방우형 콘센트", "price": 40300, "type": "socket", "img": "an_7"}, {"name": "220V 콘센트(USB 결합형/A포트/고속충전)", "price": 199600, "type": "socket_usb", "img": "an_8"}, {"name": "220V 콘센트(USB 결합형/C포트/고속충전)", "price": 199600, "type": "socket_usb", "img": "an_9"}, {"name": "220V 콘센트(USB 결합형/A+C포트)", "price": 199600, "type": "socket_usb", "img": "an_10"}, {"name": "TEL/LAN 소켓 1구", "price": 57800, "type": "data", "img": "an_15"}, {"name": "TEL/LAN 소켓 2구", "price": 81900, "type": "data", "img": "an_16"}, {"name": "TV 소켓", "price": 52000, "type": "tv", "img": "an_17"}, {"name": "TV 소켓 (2방)", "price": 52300, "type": "tv", "img": "an_18"}, {"name": "스피커 잭 (1쌍)", "price": 43400, "type": "speaker", "img": "an_19"}, {"name": "스피커 잭 (2쌍)", "price": 54000, "type": "speaker", "img": "an_20"}, {"name": "Blank 커버 (매립박스 제외)", "price": 28100, "type": "blank", "img": "an_26"}, {"name": "USB Charger 소켓(A+C포트)", "price": 137900, "type": "usb", "img": "an_11"}, {"name": "HDMI소켓 1구", "price": 167800, "type": "hdmi", "img": "an_21"}], "frame_ls990": {"1": 23600, "2": 36400, "3": 60400, "4": 96600, "5": 153300}, "frame_cube": {}}, "Aluminium Dark": {"functions": [{"name": "1회로 스위치 (단로/3로)", "price": 31200, "type": "rocker", "img": "ad_0"}, {"name": "1회로 스위치 (4로)", "price": 46700, "type": "rocker", "img": "ad_27"}, {"name": "1회로 스위치 (일괄소등)", "price": 45700, "type": "rocker", "img": "ad_4"}, {"name": "1회로 스위치 (모멘터리 1접점)", "price": 33000, "type": "rocker", "img": "ad_22"}, {"name": "1회로 스위치 (모멘터리 2접점)", "price": 157900, "type": "rocker", "img": "ad_23"}, {"name": "2회로 스위치 (단로)", "price": 43100, "type": "rocker2", "img": "ad_1"}, {"name": "2회로 스위치 (3로)", "price": 57400, "type": "rocker2", "img": "ad_2"}, {"name": "2회로 스위치 (일괄소등)", "price": 83900, "type": "rocker2", "img": "ad_5"}, {"name": "2회로 스위치 (모멘터리 2접점)", "price": 58100, "type": "rocker2", "img": "ad_24"}, {"name": "2회로 스위치 (모멘터리 4접점)", "price": 63000, "type": "rocker2", "img": "ad_25"}, {"name": "3회로 스위치 (단로/3로)", "price": 78300, "type": "rocker3", "img": "ad_3"}, {"name": "로터리 스위치 위상제어 (일반500W / LED100W)", "price": 252100, "type": "rotary", "img": "ad_12"}, {"name": "로터리 스위치 (1-10V)", "price": 145900, "type": "rotary", "img": "ad_14"}, {"name": "로터리 스위치 (DALI + Tunable white)", "price": 355800, "type": "rotary", "img": "ad_13"}, {"name": "220V 콘센트", "price": 35400, "type": "socket", "img": "ad_6"}, {"name": "220V 방우형 콘센트", "price": 45000, "type": "socket", "img": "ad_7"}, {"name": "220V 콘센트(USB 결합형/A포트/고속충전)", "price": 203800, "type": "socket_usb", "img": "ad_8"}, {"name": "220V 콘센트(USB 결합형/C포트/고속충전)", "price": 203800, "type": "socket_usb", "img": "ad_9"}, {"name": "220V 콘센트(USB 결합형/A+C포트)", "price": 203800, "type": "socket_usb", "img": "ad_10"}, {"name": "TEL/LAN 소켓 1구", "price": 60100, "type": "data", "img": "ad_15"}, {"name": "TEL/LAN 소켓 2구", "price": 84100, "type": "data", "img": "ad_16"}, {"name": "TV 소켓 (1방)", "price": 58800, "type": "tv", "img": "ad_17"}, {"name": "TV 소켓 (2방)", "price": 59100, "type": "tv", "img": "ad_18"}, {"name": "스피커 잭 (1쌍)", "price": 45700, "type": "speaker", "img": "ad_19"}, {"name": "Blank 커버 (매립박스 제외)", "price": 31700, "type": "blank", "img": "ad_26"}, {"name": "USB Charger 소켓(A+C포트)", "price": 140200, "type": "usb", "img": "ad_11"}, {"name": "HDMI소켓 1구", "price": 259600, "type": "hdmi", "img": "ad_21"}], "frame_ls990": {"1": 26400, "2": 40600, "3": 67700, "4": 108000, "5": 171300}, "frame_cube": {}}, "Classic Brass": {"functions": [{"name": "1회로 스위치 (단로/3로)", "price": 43100, "type": "rocker", "img": "cb_0"}, {"name": "1회로 스위치 (4로)", "price": 58600, "type": "rocker", "img": "cb_27"}, {"name": "1회로 스위치 (일괄소등)", "price": 57600, "type": "rocker", "img": "cb_4"}, {"name": "1회로 스위치 (모멘터리 1접점)", "price": 44900, "type": "rocker", "img": "cb_22"}, {"name": "1회로 스위치 (모멘터리 2접점)", "price": 69800, "type": "rocker", "img": "cb_23"}, {"name": "2회로 스위치 (단로)", "price": 54000, "type": "rocker2", "img": "cb_1"}, {"name": "2회로 스위치 (3로)", "price": 68300, "type": "rocker2", "img": "cb_2"}, {"name": "2회로 스위치 (일괄소등)", "price": 94800, "type": "rocker2", "img": "cb_5"}, {"name": "2회로 스위치 (모멘터리 2접점)", "price": 69000, "type": "rocker2", "img": "cb_24"}, {"name": "2회로 스위치 (모멘터리 4접점)", "price": 73900, "type": "rocker2", "img": "cb_25"}, {"name": "3회로 스위치 (단로/3로)", "price": 90300, "type": "rocker3", "img": "cb_3"}, {"name": "로터리 스위치 위상제어 (일반500W / LED100W)", "price": 262400, "type": "rotary", "img": "cb_12"}, {"name": "로터리 스위치 (1-10V)", "price": 156200, "type": "rotary", "img": "cb_14"}, {"name": "로터리 스위치 (DALI + Tunable white)", "price": 366100, "type": "rotary", "img": "cb_13"}, {"name": "220V 콘센트", "price": 46300, "type": "socket", "img": "cb_6"}, {"name": "220V 방우형 콘센트", "price": 57300, "type": "socket", "img": "cb_7"}, {"name": "220V 콘센트(USB 결합형/A포트/고속충전)", "price": 219600, "type": "socket_usb", "img": "cb_8"}, {"name": "220V 콘센트(USB 결합형/C포트/고속충전)", "price": 219600, "type": "socket_usb", "img": "cb_9"}, {"name": "220V 콘센트(USB 결합형/A+C포트)", "price": 219600, "type": "socket_usb", "img": "cb_10"}, {"name": "TEL/LAN 소켓 1구", "price": 68100, "type": "data", "img": "cb_15"}, {"name": "TEL/LAN 소켓 2구", "price": 83700, "type": "data", "img": "cb_16"}, {"name": "TV 소켓 (1방)", "price": 79700, "type": "tv", "img": "cb_17"}, {"name": "TV 소켓 (2방)", "price": 80000, "type": "tv", "img": "cb_18"}, {"name": "스피커 잭 (1쌍)", "price": 53700, "type": "speaker", "img": "cb_19"}, {"name": "Blank 커버 (매립박스 제외)", "price": 42100, "type": "blank", "img": "cb_26"}, {"name": "USB Charger 소켓(A+C포트)", "price": 148200, "type": "usb", "img": "cb_11"}], "frame_ls990": {"1": 46300, "2": 72000, "3": 120100, "4": 208200, "5": 342600}, "frame_cube": {}}, "Antique Brass": {"functions": [{"name": "1회로 스위치 (단로/3로)", "price": 43100, "type": "rocker", "img": "ab_0"}, {"name": "1회로 스위치 (4로)", "price": 58600, "type": "rocker", "img": "ab_27"}, {"name": "1회로 스위치 (일괄소등)", "price": 57600, "type": "rocker", "img": "ab_4"}, {"name": "1회로 스위치 (모멘터리 1접점)", "price": 44900, "type": "rocker", "img": "ab_22"}, {"name": "1회로 스위치 (모멘터리 2접점)", "price": 69800, "type": "rocker", "img": "ab_23"}, {"name": "2회로 스위치 (단로)", "price": 54000, "type": "rocker2", "img": "ab_1"}, {"name": "2회로 스위치 (3로)", "price": 68300, "type": "rocker2", "img": "ab_2"}, {"name": "2회로 스위치 (일괄소등)", "price": 94800, "type": "rocker2", "img": "ab_5"}, {"name": "2회로 스위치 (모멘터리 2접점)", "price": 69000, "type": "rocker2", "img": "ab_24"}, {"name": "2회로 스위치 (모멘터리 4접점)", "price": 73900, "type": "rocker2", "img": "ab_25"}, {"name": "3회로 스위치 (단로/3로)", "price": 90300, "type": "rocker3", "img": "ab_3"}, {"name": "로터리 스위치 위상제어 (일반500W / LED100W)", "price": 262400, "type": "rotary", "img": "ab_12"}, {"name": "로터리 스위치 (1-10V)", "price": 156200, "type": "rotary", "img": "ab_14"}, {"name": "로터리 스위치 (DALI + Tunable white)", "price": 366100, "type": "rotary", "img": "ab_13"}, {"name": "220V 콘센트", "price": 46300, "type": "socket", "img": "ab_6"}, {"name": "220V 방우형 콘센트", "price": 57300, "type": "socket", "img": "ab_7"}, {"name": "220V 콘센트(USB 결합형/A포트/고속충전)", "price": 219600, "type": "socket_usb", "img": "ab_8"}, {"name": "220V 콘센트(USB 결합형/C포트/고속충전)", "price": 219600, "type": "socket_usb", "img": "ab_9"}, {"name": "220V 콘센트(USB 결합형/A+C포트)", "price": 219600, "type": "socket_usb", "img": "ab_10"}, {"name": "TEL/LAN 소켓 1구", "price": 68100, "type": "data", "img": "ab_15"}, {"name": "TEL/LAN 소켓 2구", "price": 83700, "type": "data", "img": "ab_16"}, {"name": "TV 소켓 (1방)", "price": 79700, "type": "tv", "img": "ab_17"}, {"name": "TV 소켓 (2방)", "price": 80000, "type": "tv", "img": "ab_18"}, {"name": "스피커 잭 (1쌍)", "price": 53700, "type": "speaker", "img": "ab_19"}, {"name": "Blank 커버 (매립박스 제외)", "price": 42100, "type": "blank", "img": "ab_26"}, {"name": "USB Charger 소켓(A+C포트)", "price": 148200, "type": "usb", "img": "ab_11"}], "frame_ls990": {"1": 46300, "2": 72000, "3": 120100, "4": 208200, "5": 342600}, "frame_cube": {}}}, "wallbox": [{"id": "m1", "name": "매립박스 1구 (Metal)", "code": "BS6042M-50", "price": 2900, "img": "wb_0"}, {"id": "p1a", "name": "매립박스 1구 (Plastic 47mm)", "code": "9063-02", "price": 4000, "img": "wb_1"}, {"id": "p1b", "name": "매립박스 1구 (Plastic 61mm)", "code": "9064-02", "price": 4000, "img": "wb_2"}, {"id": "p2", "name": "매립박스 2구 (Plastic)", "code": "9252-22", "price": 7000, "img": "wb_3"}, {"id": "p3", "name": "매립박스 3구 (Plastic)", "code": "9253-22", "price": 10200, "img": "wb_4"}, {"id": "p4", "name": "매립박스 4구 (Plastic)", "code": "9254-22", "price": 12000, "img": "wb_5"}]};
-const won=n=>'\u20a9'+Math.round(n).toLocaleString('ko-KR');
+const DATA = {"materials": [{"id": "duro", "name": "듀로플라스틱", "colors": [{"name": "White", "ko": "화이트", "hex": "#f3f2ec", "dark": false, "img": "wh_0"}, {"name": "Ivory", "ko": "아이보리", "hex": "#ece3d0", "dark": false, "img": "iv_0"}, {"name": "Light Grey", "ko": "라이트그레이", "hex": "#c7c8c2", "dark": false, "img": "lg_0"}, {"name": "Black", "ko": "블랙", "hex": "#2a2a2a", "dark": true, "img": "bk_0"}]}, {"id": "matt", "name": "무광 래커", "colors": [{"name": "Matt Snow White", "ko": "무광 스노우화이트", "hex": "#ecebe4", "dark": false, "img": "mw_0"}, {"name": "Matt Graphite Black", "ko": "무광 그래파이트블랙", "hex": "#37383b", "dark": true, "img": "mb_0"}]}, {"id": "metal", "name": "메탈", "colors": [{"name": "Stainless Steel", "ko": "스테인리스 스틸", "hex": "#b9bdc1", "dark": false, "img": "ss_0"}, {"name": "Aluminium", "ko": "알루미늄", "hex": "#c6c9cd", "dark": false, "img": "al_0"}, {"name": "Anthracite", "ko": "안트라사이트", "hex": "#3c4042", "dark": true, "img": "an_0"}, {"name": "Aluminium Dark", "ko": "알루미늄 다크", "hex": "#4a4d50", "dark": true, "img": "ad_0"}]}, {"id": "brass", "name": "브라스", "colors": [{"name": "Classic Brass", "ko": "클래식 브라스", "hex": "#b3904f", "dark": false, "img": "cb_0"}, {"name": "Antique Brass", "ko": "앤티크 브라스", "hex": "#8a6e3d", "dark": true, "img": "ab_0"}]}], "prices": {"White": {"functions": [{"name": "1회로 스위치 (단로/3로)", "type": "rocker", "img": "wh_0"}, {"name": "1회로 스위치 (4로)", "type": "rocker", "img": "wh_27"}, {"name": "1회로 스위치 (일괄소등)", "type": "rocker", "img": "wh_4"}, {"name": "1회로 스위치 (모멘터리 1접점)", "type": "rocker", "img": "wh_22"}, {"name": "1회로 스위치 (모멘터리 2접점)", "type": "rocker", "img": "wh_23"}, {"name": "2회로 스위치 (단로)", "type": "rocker2", "img": "wh_1"}, {"name": "2회로 스위치 (3로)", "type": "rocker2", "img": "wh_2"}, {"name": "2회로 스위치 (일괄소등)", "type": "rocker2", "img": "wh_5"}, {"name": "2회로 스위치 (모멘터리 2접점)", "type": "rocker2", "img": "wh_24"}, {"name": "2회로 스위치 (모멘터리 4접점)", "type": "rocker2", "img": "wh_25"}, {"name": "3회로 스위치 (단로/3로)", "type": "rocker3", "img": "wh_3"}, {"name": "로터리 스위치 위상제어 (일반500W / LED100W)", "type": "rotary", "img": "wh_12"}, {"name": "로터리 스위치 (1-10V)", "type": "rotary", "img": "wh_14"}, {"name": "로터리 스위치 (DALI + Tunable white)", "type": "rotary", "img": "wh_13"}, {"name": "220V 콘센트", "type": "socket", "img": "wh_6"}, {"name": "220V 방우형 콘센트", "type": "socket", "img": "wh_7"}, {"name": "220V 콘센트(USB 결합형/A포트/고속충전)", "type": "socket_usb", "img": "wh_8"}, {"name": "220V 콘센트(USB 결합형/C포트/고속충전)", "type": "socket_usb", "img": "wh_9"}, {"name": "220V 콘센트(USB 결합형/A+C포트)", "type": "socket_usb", "img": "wh_10"}, {"name": "TEL/LAN 소켓 1구", "type": "data", "img": "wh_15"}, {"name": "TEL/LAN 소켓 2구", "type": "data", "img": "wh_16"}, {"name": "TV 소켓 (1방)", "type": "tv", "img": "wh_17"}, {"name": "TV 소켓 (2방)", "type": "tv", "img": "wh_18"}, {"name": "스피커 잭 (1쌍)", "type": "speaker", "img": "wh_19"}, {"name": "스피커 잭 (2쌍)", "type": "speaker", "img": "wh_20"}, {"name": "Blank 커버 (매립박스 제외)", "type": "blank", "img": "wh_26"}, {"name": "USB Charger 소켓(A+C포트)", "type": "usb", "img": "wh_11"}, {"name": "HDMI소켓 1구", "type": "hdmi", "img": "wh_21"}], "frame_ls990": {}, "frame_cube": {}}, "Ivory": {"functions": [{"name": "1회로 스위치 (단로/3로)", "type": "rocker", "img": "iv_0"}, {"name": "1회로 스위치 (4로)", "type": "rocker", "img": "iv_27"}, {"name": "1회로 스위치 (일괄소등 전용)", "type": "rocker", "img": "iv_4"}, {"name": "1회로 스위치 (모멘터리 1접점)", "type": "rocker", "img": "iv_22"}, {"name": "1회로 스위치 (모멘터리 2접점)", "type": "rocker", "img": "iv_23"}, {"name": "2회로 스위치 (단로)", "type": "rocker2", "img": "iv_1"}, {"name": "2회로 스위치 (3로)", "type": "rocker2", "img": "iv_2"}, {"name": "2회로 스위치 (일괄소등)", "type": "rocker2", "img": "iv_5"}, {"name": "2회로 스위치 (모멘터리 2접점)", "type": "rocker2", "img": "iv_24"}, {"name": "2회로 스위치 (모멘터리 4접점)", "type": "rocker2", "img": "iv_25"}, {"name": "3회로 스위치 (단로/3로)", "type": "rocker3", "img": "iv_3"}, {"name": "로터리 스위치 위상제어 (일반500W / LED100W)", "type": "rotary", "img": "iv_12"}, {"name": "로터리 스위치 (1-10V)", "type": "rotary", "img": "iv_14"}, {"name": "로터리 스위치 (DALI + Tunable white)", "type": "rotary", "img": "iv_13"}, {"name": "220V 콘센트", "type": "socket", "img": "iv_6"}, {"name": "220V 방우형 콘센트", "type": "socket", "img": "iv_7"}, {"name": "220V 콘센트(USB 결합형/A포트/고속충전)", "type": "socket_usb", "img": "iv_8"}, {"name": "220V 콘센트(USB 결합형/C포트/고속충전)", "type": "socket_usb", "img": "iv_9"}, {"name": "220V 콘센트(USB 결합형/A+C포트)", "type": "socket_usb", "img": "iv_10"}, {"name": "TEL/LAN 소켓 1구", "type": "data", "img": "iv_15"}, {"name": "TEL/LAN 소켓 2구", "type": "data", "img": "iv_16"}, {"name": "TV 소켓 (1방)", "type": "tv", "img": "iv_17"}, {"name": "TV 소켓 (2방)", "type": "tv", "img": "iv_18"}, {"name": "스피커 잭 (1쌍)", "type": "speaker", "img": "iv_19"}, {"name": "Blank 커버 (매립박스 제외)", "type": "blank", "img": "iv_26"}, {"name": "USB Charger 소켓(A+C포트)", "type": "usb", "img": "iv_11"}, {"name": "HDMI소켓 1구", "type": "hdmi", "img": "iv_21"}], "frame_ls990": {}, "frame_cube": {}}, "Light Grey": {"functions": [{"name": "1회로 스위치 (단로/3로)", "type": "rocker", "img": "lg_0"}, {"name": "1회로 스위치 (4로)", "type": "rocker", "img": "lg_27"}, {"name": "1회로 스위치 (일괄소등)", "type": "rocker", "img": "lg_4"}, {"name": "1회로 스위치 (모멘터리 1접점)", "type": "rocker", "img": "lg_22"}, {"name": "1회로 스위치 (모멘터리 2접점)", "type": "rocker", "img": "lg_23"}, {"name": "2회로 스위치 (단로)", "type": "rocker2", "img": "lg_1"}, {"name": "2회로 스위치 (3로)", "type": "rocker2", "img": "lg_2"}, {"name": "2회로 스위치 (일괄소등)", "type": "rocker2", "img": "lg_5"}, {"name": "2회로 스위치 (모멘터리 2접점)", "type": "rocker2", "img": "lg_24"}, {"name": "2회로 스위치 (모멘터리 4접점)", "type": "rocker2", "img": "lg_25"}, {"name": "3회로 스위치 (단로/3로)", "type": "rocker3", "img": "lg_3"}, {"name": "로터리 스위치 위상제어 (일반500W / LED100W)", "type": "rotary", "img": "lg_12"}, {"name": "로터리 스위치 (1-10V)", "type": "rotary", "img": "lg_14"}, {"name": "로터리 스위치 (DALI + Tunable white)", "type": "rotary", "img": "lg_13"}, {"name": "220V 콘센트", "type": "socket", "img": "lg_6"}, {"name": "220V 방우형 콘센트", "type": "socket", "img": "lg_7"}, {"name": "220V 콘센트(USB 결합형/A포트/고속충전)", "type": "socket_usb", "img": "lg_8"}, {"name": "220V 콘센트(USB 결합형/C포트/고속충전)", "type": "socket_usb", "img": "lg_9"}, {"name": "220V 콘센트(USB 결합형/A+C포트)", "type": "socket_usb", "img": "lg_10"}, {"name": "TEL/LAN 소켓 1구", "type": "data", "img": "lg_15"}, {"name": "TEL/LAN 소켓 2구", "type": "data", "img": "lg_16"}, {"name": "TV 소켓 (1방)", "type": "tv", "img": "lg_17"}, {"name": "TV 소켓 (2방)", "type": "tv", "img": "lg_18"}, {"name": "스피커 잭 (1쌍)", "type": "speaker", "img": "lg_19"}, {"name": "Blank 커버 (매립박스 제외)", "type": "blank", "img": "lg_26"}, {"name": "USB Charger 소켓(A+C포트)", "type": "usb", "img": "lg_11"}, {"name": "HDMI소켓 1구", "type": "hdmi", "img": "lg_21"}], "frame_ls990": {}, "frame_cube": {}}, "Black": {"functions": [{"name": "1회로 스위치 (단로/3로)", "type": "rocker", "img": "bk_0"}, {"name": "1회로 스위치 (4로)", "type": "rocker", "img": "bk_27"}, {"name": "1회로 스위치 (일괄소등)", "type": "rocker", "img": "bk_4"}, {"name": "1회로 스위치 (모멘터리 1접점)", "type": "rocker", "img": "bk_22"}, {"name": "1회로 스위치 (모멘터리 2접점)", "type": "rocker", "img": "bk_23"}, {"name": "2회로 스위치 (단로)", "type": "rocker2", "img": "bk_1"}, {"name": "2회로 스위치 (3로)", "type": "rocker2", "img": "bk_2"}, {"name": "2회로 스위치 (일괄소등)", "type": "rocker2", "img": "bk_5"}, {"name": "2회로 스위치 (모멘터리 2접점)", "type": "rocker2", "img": "bk_24"}, {"name": "2회로 스위치 (모멘터리 4접점)", "type": "rocker2", "img": "bk_25"}, {"name": "3회로 스위치 (단로/3로)", "type": "rocker3", "img": "bk_3"}, {"name": "로터리 스위치 위상제어 (일반500W / LED100W)", "type": "rotary", "img": "bk_12"}, {"name": "로터리 스위치 (1-10V)", "type": "rotary", "img": "bk_14"}, {"name": "로터리 스위치 (DALI + Tunable white)", "type": "rotary", "img": "bk_13"}, {"name": "220V 콘센트", "type": "socket", "img": "bk_6"}, {"name": "220V 방우형 콘센트", "type": "socket", "img": "bk_7"}, {"name": "220V 콘센트(USB 결합형/A포트/고속충전)", "type": "socket_usb", "img": "bk_8"}, {"name": "220V 콘센트(USB 결합형/C포트/고속충전)", "type": "socket_usb", "img": "bk_9"}, {"name": "220V 콘센트(USB 결합형/A+C포트)", "type": "socket_usb", "img": "bk_10"}, {"name": "TEL/LAN 소켓 1구", "type": "data", "img": "bk_15"}, {"name": "TEL/LAN 소켓 2구", "type": "data", "img": "bk_16"}, {"name": "TV 소켓 (1방)", "type": "tv", "img": "bk_17"}, {"name": "TV 소켓 (2방)", "type": "tv", "img": "bk_18"}, {"name": "스피커 잭 (1쌍)", "type": "speaker", "img": "bk_19"}, {"name": "Blank 커버 (매립박스 제외)", "type": "blank", "img": "bk_26"}, {"name": "USB Charger 소켓(A+C포트)", "type": "usb", "img": "bk_11"}, {"name": "HDMI소켓 1구", "type": "hdmi", "img": "bk_21"}], "frame_ls990": {}, "frame_cube": {}}, "Matt Snow White": {"functions": [{"name": "1회로 스위치 (단로/3로)", "type": "rocker", "img": "mw_0"}, {"name": "1회로 스위치 (4로)", "type": "rocker", "img": "mw_27"}, {"name": "1회로 스위치 (일괄소등)", "type": "rocker", "img": "mw_4"}, {"name": "1회로 스위치 (모멘터리 1접점)", "type": "rocker", "img": "mw_22"}, {"name": "1회로 스위치 (모멘터리 2접점)", "type": "rocker", "img": "mw_23"}, {"name": "2회로 스위치 (단로)", "type": "rocker2", "img": "mw_1"}, {"name": "2회로 스위치 (3로)", "type": "rocker2", "img": "mw_2"}, {"name": "2회로 스위치 (일괄소등)", "type": "rocker2", "img": "mw_5"}, {"name": "2회로 스위치 (모멘터리 2접점)", "type": "rocker2", "img": "mw_24"}, {"name": "2회로 스위치 (모멘터리 4접점)", "type": "rocker2", "img": "mw_25"}, {"name": "3회로 스위치 (단로/3로)", "type": "rocker3", "img": "mw_3"}, {"name": "로터리 스위치 위상제어 (일반500W / LED100W)", "type": "rotary", "img": "mw_12"}, {"name": "로터리 스위치 (1-10V)", "type": "rotary", "img": "mw_14"}, {"name": "로터리 스위치 (DALI + Tunable white)", "type": "rotary", "img": "mw_13"}, {"name": "220V 콘센트", "type": "socket", "img": "mw_6"}, {"name": "220V 방우형 콘센트", "type": "socket", "img": "mw_7"}, {"name": "220V 콘센트(USB 결합형/A포트/고속충전)", "type": "socket_usb", "img": "mw_8"}, {"name": "220V 콘센트(USB 결합형/C포트/고속충전)", "type": "socket_usb", "img": "mw_9"}, {"name": "220V 콘센트(USB 결합형/A+C포트)", "type": "socket_usb", "img": "mw_10"}, {"name": "TEL/LAN 소켓 1구", "type": "data", "img": "mw_15"}, {"name": "TEL/LAN 소켓 2구", "type": "data", "img": "mw_16"}, {"name": "TV 소켓 (1방)", "type": "tv", "img": "mw_17"}, {"name": "TV 소켓 (2방)", "type": "tv", "img": "mw_18"}, {"name": "스피커 잭 (1쌍)", "type": "speaker", "img": "mw_19"}, {"name": "Blank 커버 (매립박스 제외)", "type": "blank", "img": "mw_26"}, {"name": "USB Charger 소켓(A+C포트)", "type": "usb", "img": "mw_11"}, {"name": "HDMI소켓 1구", "type": "hdmi", "img": "mw_21"}], "frame_ls990": {}, "frame_cube": {}}, "Matt Graphite Black": {"functions": [{"name": "1회로 스위치 (단로/3로)", "type": "rocker", "img": "mb_0"}, {"name": "1회로 스위치 (4로)", "type": "rocker", "img": "mb_27"}, {"name": "1회로 스위치 (일괄소등)", "type": "rocker", "img": "mb_4"}, {"name": "1회로 스위치 (모멘터리 1접점)", "type": "rocker", "img": "mb_22"}, {"name": "1회로 스위치 (모멘터리 2접점)", "type": "rocker", "img": "mb_23"}, {"name": "2회로 스위치 (단로)", "type": "rocker2", "img": "mb_1"}, {"name": "2회로 스위치 (3로)", "type": "rocker2", "img": "mb_2"}, {"name": "2회로 스위치 (일괄소등)", "type": "rocker2", "img": "mb_5"}, {"name": "2회로 스위치 (모멘터리 2접점)", "type": "rocker2", "img": "mb_24"}, {"name": "2회로 스위치 (모멘터리 4접점)", "type": "rocker2", "img": "mb_25"}, {"name": "3회로 스위치 (단로/3로)", "type": "rocker3", "img": "mb_3"}, {"name": "로터리 스위치 위상제어 (일반500W / LED100W)", "type": "rotary", "img": "mb_12"}, {"name": "로터리 스위치 (1-10V)", "type": "rotary", "img": "mb_14"}, {"name": "로터리 스위치 (DALI + Tunable white)", "type": "rotary", "img": "mb_13"}, {"name": "220V 콘센트", "type": "socket", "img": "mb_6"}, {"name": "220V 방우형 콘센트", "type": "socket", "img": "mb_7"}, {"name": "220V 콘센트(USB 결합형/A포트/고속충전)", "type": "socket_usb", "img": "mb_8"}, {"name": "220V 콘센트(USB 결합형/C포트/고속충전)", "type": "socket_usb", "img": "mb_9"}, {"name": "220V 콘센트(USB 결합형/A+C포트)", "type": "socket_usb", "img": "mb_10"}, {"name": "TEL/LAN 소켓 1구", "type": "data", "img": "mb_15"}, {"name": "TEL/LAN 소켓 2구", "type": "data", "img": "mb_16"}, {"name": "TV 소켓 (1방)", "type": "tv", "img": "mb_17"}, {"name": "TV 소켓 (2방)", "type": "tv", "img": "mb_18"}, {"name": "스피커 잭 (1쌍)", "type": "speaker", "img": "mb_19"}, {"name": "Blank 커버 (매립박스 제외)", "type": "blank", "img": "mb_26"}, {"name": "USB Charger 소켓(A+C포트)", "type": "usb", "img": "mb_11"}, {"name": "HDMI소켓 1구", "type": "hdmi", "img": "mb_21"}], "frame_ls990": {}, "frame_cube": {}}, "Stainless Steel": {"functions": [{"name": "1회로 스위치 (단로/3로)", "type": "rocker", "img": "ss_0"}, {"name": "1회로 스위치 (4로)", "type": "rocker", "img": "ss_27"}, {"name": "1회로 스위치 (일괄소등)", "type": "rocker", "img": "ss_4"}, {"name": "1회로 스위치 (모멘터리 1접점)", "type": "rocker", "img": "ss_22"}, {"name": "1회로 스위치 (모멘터리 2접점)", "type": "rocker", "img": "ss_23"}, {"name": "2회로 스위치 (단로)", "type": "rocker2", "img": "ss_1"}, {"name": "2회로 스위치 (3로)", "type": "rocker2", "img": "ss_2"}, {"name": "2회로 스위치 (일괄소등)", "type": "rocker2", "img": "ss_5"}, {"name": "2회로 스위치 (모멘터리 2접점)", "type": "rocker2", "img": "ss_24"}, {"name": "2회로 스위치 (모멘터리 4접점)", "type": "rocker2", "img": "ss_25"}, {"name": "3회로 스위치 (단로/3로)", "type": "rocker3", "img": "ss_3"}, {"name": "로터리 스위치 위상제어 (일반500W / LED100W)", "type": "rotary", "img": "ss_12"}, {"name": "로터리 스위치 (1-10V)", "type": "rotary", "img": "ss_14"}, {"name": "로터리 스위치 (DALI + Tunable white)", "type": "rotary", "img": "ss_13"}, {"name": "220V 콘센트", "type": "socket", "img": "ss_6"}, {"name": "220V 방우형 콘센트", "type": "socket", "img": "ss_7"}, {"name": "220V 콘센트(USB 결합형/A포트/고속충전)", "type": "socket_usb", "img": "ss_8"}, {"name": "220V 콘센트(USB 결합형/C포트/고속충전)", "type": "socket_usb", "img": "ss_9"}, {"name": "220V 콘센트(USB 결합형/A+C포트)", "type": "socket_usb", "img": "ss_10"}, {"name": "TEL/LAN 소켓 1구", "type": "data", "img": "ss_15"}, {"name": "TEL/LAN 소켓 2구", "type": "data", "img": "ss_16"}, {"name": "TV 소켓 (1방)", "type": "tv", "img": "ss_17"}, {"name": "TV 소켓 (2방)", "type": "tv", "img": "ss_18"}, {"name": "스피커 잭 (1쌍)", "type": "speaker", "img": "ss_19"}, {"name": "스피커 잭 (2쌍)", "type": "speaker", "img": "ss_20"}, {"name": "Blank 커버 (매립박스 제외)", "type": "blank", "img": "ss_26"}, {"name": "USB Charger 소켓(A+C포트)", "type": "usb", "img": "ss_11"}, {"name": "HDMI소켓 1구", "type": "hdmi", "img": "ss_21"}], "frame_ls990": {}, "frame_cube": {}}, "Aluminium": {"functions": [{"name": "1회로 스위치 (단로/3로)", "type": "rocker", "img": "al_0"}, {"name": "1회로 스위치 (4로)", "type": "rocker", "img": "al_27"}, {"name": "1회로 스위치 (일괄소등)", "type": "rocker", "img": "al_4"}, {"name": "1회로 스위치 (모멘터리 1접점)", "type": "rocker", "img": "al_22"}, {"name": "1회로 스위치 (모멘터리 2접점)", "type": "rocker", "img": "al_23"}, {"name": "2회로 스위치 (단로)", "type": "rocker2", "img": "al_1"}, {"name": "2회로 스위치 (3로)", "type": "rocker2", "img": "al_2"}, {"name": "2회로 스위치 (일괄소등)", "type": "rocker2", "img": "al_5"}, {"name": "2회로 스위치 (모멘터리 2접점)", "type": "rocker2", "img": "al_24"}, {"name": "2회로 스위치 (모멘터리 4접점)", "type": "rocker2", "img": "al_25"}, {"name": "3회로 스위치 (단로/3로)", "type": "rocker3", "img": "al_3"}, {"name": "로터리 스위치 위상제어 (일반500W / LED100W)", "type": "rotary", "img": "al_12"}, {"name": "로터리 스위치 (1-10V)", "type": "rotary", "img": "al_14"}, {"name": "로터리 스위치 (DALI + Tunable white)", "type": "rotary", "img": "al_13"}, {"name": "220V 콘센트", "type": "socket", "img": "al_6"}, {"name": "220V 방우형 콘센트", "type": "socket", "img": "al_7"}, {"name": "220V 콘센트(USB 결합형/A포트/고속충전)", "type": "socket_usb", "img": "al_8"}, {"name": "220V 콘센트(USB 결합형/C포트/고속충전)", "type": "socket_usb", "img": "al_9"}, {"name": "220V 콘센트(USB 결합형/A+C포트)", "type": "socket_usb", "img": "al_10"}, {"name": "TEL/LAN 소켓 1구", "type": "data", "img": "al_15"}, {"name": "TEL/LAN 소켓 2구", "type": "data", "img": "al_16"}, {"name": "TV 소켓 (1방)", "type": "tv", "img": "al_17"}, {"name": "TV 소켓 (2방)", "type": "tv", "img": "al_18"}, {"name": "스피커 잭 (1쌍)", "type": "speaker", "img": "al_19"}, {"name": "스피커 잭 (2쌍)", "type": "speaker", "img": "al_20"}, {"name": "Blank 커버 (매립박스 제외)", "type": "blank", "img": "al_26"}, {"name": "USB Charger 소켓(A+C포트)", "type": "usb", "img": "al_11"}, {"name": "HDMI소켓 1구", "type": "hdmi", "img": "al_21"}], "frame_ls990": {}, "frame_cube": {}}, "Anthracite": {"functions": [{"name": "1회로 스위치 (단로/3로)", "type": "rocker", "img": "an_0"}, {"name": "1회로 스위치 (4로)", "type": "rocker", "img": "an_27"}, {"name": "1회로 스위치 (일괄소등)", "type": "rocker", "img": "an_4"}, {"name": "1회로 스위치 (모멘터리 1접점)", "type": "rocker", "img": "an_22"}, {"name": "1회로 스위치 (모멘터리 2접점)", "type": "rocker", "img": "an_23"}, {"name": "2회로 스위치 (단로)", "type": "rocker2", "img": "an_1"}, {"name": "2회로 스위치 (3로)", "type": "rocker2", "img": "an_2"}, {"name": "2회로 스위치 (일괄소등)", "type": "rocker2", "img": "an_5"}, {"name": "2회로 스위치 (모멘터리 2접점)", "type": "rocker2", "img": "an_24"}, {"name": "2회로 스위치 (모멘터리 4접점)", "type": "rocker2", "img": "an_25"}, {"name": "3회로 스위치 (단로/3로)", "type": "rocker3", "img": "an_3"}, {"name": "로터리 스위치 위상제어 (일반500W / LED100W)", "type": "rotary", "img": "an_12"}, {"name": "로터리 스위치 (1-10V)", "type": "rotary", "img": "an_14"}, {"name": "로터리 스위치 (DALI + Tunable white)", "type": "rotary", "img": "an_13"}, {"name": "220V 콘센트", "type": "socket", "img": "an_6"}, {"name": "220V 방우형 콘센트", "type": "socket", "img": "an_7"}, {"name": "220V 콘센트(USB 결합형/A포트/고속충전)", "type": "socket_usb", "img": "an_8"}, {"name": "220V 콘센트(USB 결합형/C포트/고속충전)", "type": "socket_usb", "img": "an_9"}, {"name": "220V 콘센트(USB 결합형/A+C포트)", "type": "socket_usb", "img": "an_10"}, {"name": "TEL/LAN 소켓 1구", "type": "data", "img": "an_15"}, {"name": "TEL/LAN 소켓 2구", "type": "data", "img": "an_16"}, {"name": "TV 소켓", "type": "tv", "img": "an_17"}, {"name": "TV 소켓 (2방)", "type": "tv", "img": "an_18"}, {"name": "스피커 잭 (1쌍)", "type": "speaker", "img": "an_19"}, {"name": "스피커 잭 (2쌍)", "type": "speaker", "img": "an_20"}, {"name": "Blank 커버 (매립박스 제외)", "type": "blank", "img": "an_26"}, {"name": "USB Charger 소켓(A+C포트)", "type": "usb", "img": "an_11"}, {"name": "HDMI소켓 1구", "type": "hdmi", "img": "an_21"}], "frame_ls990": {}, "frame_cube": {}}, "Aluminium Dark": {"functions": [{"name": "1회로 스위치 (단로/3로)", "type": "rocker", "img": "ad_0"}, {"name": "1회로 스위치 (4로)", "type": "rocker", "img": "ad_27"}, {"name": "1회로 스위치 (일괄소등)", "type": "rocker", "img": "ad_4"}, {"name": "1회로 스위치 (모멘터리 1접점)", "type": "rocker", "img": "ad_22"}, {"name": "1회로 스위치 (모멘터리 2접점)", "type": "rocker", "img": "ad_23"}, {"name": "2회로 스위치 (단로)", "type": "rocker2", "img": "ad_1"}, {"name": "2회로 스위치 (3로)", "type": "rocker2", "img": "ad_2"}, {"name": "2회로 스위치 (일괄소등)", "type": "rocker2", "img": "ad_5"}, {"name": "2회로 스위치 (모멘터리 2접점)", "type": "rocker2", "img": "ad_24"}, {"name": "2회로 스위치 (모멘터리 4접점)", "type": "rocker2", "img": "ad_25"}, {"name": "3회로 스위치 (단로/3로)", "type": "rocker3", "img": "ad_3"}, {"name": "로터리 스위치 위상제어 (일반500W / LED100W)", "type": "rotary", "img": "ad_12"}, {"name": "로터리 스위치 (1-10V)", "type": "rotary", "img": "ad_14"}, {"name": "로터리 스위치 (DALI + Tunable white)", "type": "rotary", "img": "ad_13"}, {"name": "220V 콘센트", "type": "socket", "img": "ad_6"}, {"name": "220V 방우형 콘센트", "type": "socket", "img": "ad_7"}, {"name": "220V 콘센트(USB 결합형/A포트/고속충전)", "type": "socket_usb", "img": "ad_8"}, {"name": "220V 콘센트(USB 결합형/C포트/고속충전)", "type": "socket_usb", "img": "ad_9"}, {"name": "220V 콘센트(USB 결합형/A+C포트)", "type": "socket_usb", "img": "ad_10"}, {"name": "TEL/LAN 소켓 1구", "type": "data", "img": "ad_15"}, {"name": "TEL/LAN 소켓 2구", "type": "data", "img": "ad_16"}, {"name": "TV 소켓 (1방)", "type": "tv", "img": "ad_17"}, {"name": "TV 소켓 (2방)", "type": "tv", "img": "ad_18"}, {"name": "스피커 잭 (1쌍)", "type": "speaker", "img": "ad_19"}, {"name": "Blank 커버 (매립박스 제외)", "type": "blank", "img": "ad_26"}, {"name": "USB Charger 소켓(A+C포트)", "type": "usb", "img": "ad_11"}, {"name": "HDMI소켓 1구", "type": "hdmi", "img": "ad_21"}], "frame_ls990": {}, "frame_cube": {}}, "Classic Brass": {"functions": [{"name": "1회로 스위치 (단로/3로)", "type": "rocker", "img": "cb_0"}, {"name": "1회로 스위치 (4로)", "type": "rocker", "img": "cb_27"}, {"name": "1회로 스위치 (일괄소등)", "type": "rocker", "img": "cb_4"}, {"name": "1회로 스위치 (모멘터리 1접점)", "type": "rocker", "img": "cb_22"}, {"name": "1회로 스위치 (모멘터리 2접점)", "type": "rocker", "img": "cb_23"}, {"name": "2회로 스위치 (단로)", "type": "rocker2", "img": "cb_1"}, {"name": "2회로 스위치 (3로)", "type": "rocker2", "img": "cb_2"}, {"name": "2회로 스위치 (일괄소등)", "type": "rocker2", "img": "cb_5"}, {"name": "2회로 스위치 (모멘터리 2접점)", "type": "rocker2", "img": "cb_24"}, {"name": "2회로 스위치 (모멘터리 4접점)", "type": "rocker2", "img": "cb_25"}, {"name": "3회로 스위치 (단로/3로)", "type": "rocker3", "img": "cb_3"}, {"name": "로터리 스위치 위상제어 (일반500W / LED100W)", "type": "rotary", "img": "cb_12"}, {"name": "로터리 스위치 (1-10V)", "type": "rotary", "img": "cb_14"}, {"name": "로터리 스위치 (DALI + Tunable white)", "type": "rotary", "img": "cb_13"}, {"name": "220V 콘센트", "type": "socket", "img": "cb_6"}, {"name": "220V 방우형 콘센트", "type": "socket", "img": "cb_7"}, {"name": "220V 콘센트(USB 결합형/A포트/고속충전)", "type": "socket_usb", "img": "cb_8"}, {"name": "220V 콘센트(USB 결합형/C포트/고속충전)", "type": "socket_usb", "img": "cb_9"}, {"name": "220V 콘센트(USB 결합형/A+C포트)", "type": "socket_usb", "img": "cb_10"}, {"name": "TEL/LAN 소켓 1구", "type": "data", "img": "cb_15"}, {"name": "TEL/LAN 소켓 2구", "type": "data", "img": "cb_16"}, {"name": "TV 소켓 (1방)", "type": "tv", "img": "cb_17"}, {"name": "TV 소켓 (2방)", "type": "tv", "img": "cb_18"}, {"name": "스피커 잭 (1쌍)", "type": "speaker", "img": "cb_19"}, {"name": "Blank 커버 (매립박스 제외)", "type": "blank", "img": "cb_26"}, {"name": "USB Charger 소켓(A+C포트)", "type": "usb", "img": "cb_11"}], "frame_ls990": {}, "frame_cube": {}}, "Antique Brass": {"functions": [{"name": "1회로 스위치 (단로/3로)", "type": "rocker", "img": "ab_0"}, {"name": "1회로 스위치 (4로)", "type": "rocker", "img": "ab_27"}, {"name": "1회로 스위치 (일괄소등)", "type": "rocker", "img": "ab_4"}, {"name": "1회로 스위치 (모멘터리 1접점)", "type": "rocker", "img": "ab_22"}, {"name": "1회로 스위치 (모멘터리 2접점)", "type": "rocker", "img": "ab_23"}, {"name": "2회로 스위치 (단로)", "type": "rocker2", "img": "ab_1"}, {"name": "2회로 스위치 (3로)", "type": "rocker2", "img": "ab_2"}, {"name": "2회로 스위치 (일괄소등)", "type": "rocker2", "img": "ab_5"}, {"name": "2회로 스위치 (모멘터리 2접점)", "type": "rocker2", "img": "ab_24"}, {"name": "2회로 스위치 (모멘터리 4접점)", "type": "rocker2", "img": "ab_25"}, {"name": "3회로 스위치 (단로/3로)", "type": "rocker3", "img": "ab_3"}, {"name": "로터리 스위치 위상제어 (일반500W / LED100W)", "type": "rotary", "img": "ab_12"}, {"name": "로터리 스위치 (1-10V)", "type": "rotary", "img": "ab_14"}, {"name": "로터리 스위치 (DALI + Tunable white)", "type": "rotary", "img": "ab_13"}, {"name": "220V 콘센트", "type": "socket", "img": "ab_6"}, {"name": "220V 방우형 콘센트", "type": "socket", "img": "ab_7"}, {"name": "220V 콘센트(USB 결합형/A포트/고속충전)", "type": "socket_usb", "img": "ab_8"}, {"name": "220V 콘센트(USB 결합형/C포트/고속충전)", "type": "socket_usb", "img": "ab_9"}, {"name": "220V 콘센트(USB 결합형/A+C포트)", "type": "socket_usb", "img": "ab_10"}, {"name": "TEL/LAN 소켓 1구", "type": "data", "img": "ab_15"}, {"name": "TEL/LAN 소켓 2구", "type": "data", "img": "ab_16"}, {"name": "TV 소켓 (1방)", "type": "tv", "img": "ab_17"}, {"name": "TV 소켓 (2방)", "type": "tv", "img": "ab_18"}, {"name": "스피커 잭 (1쌍)", "type": "speaker", "img": "ab_19"}, {"name": "Blank 커버 (매립박스 제외)", "type": "blank", "img": "ab_26"}, {"name": "USB Charger 소켓(A+C포트)", "type": "usb", "img": "ab_11"}], "frame_ls990": {}, "frame_cube": {}}}, "wallbox": [{"id": "m1", "name": "매립박스 1구 (Metal)", "code": "BS6042M-50", "img": "wb_0"}, {"id": "p1a", "name": "매립박스 1구 (Plastic 47mm)", "code": "9063-02", "img": "wb_1"}, {"id": "p1b", "name": "매립박스 1구 (Plastic 61mm)", "code": "9064-02", "img": "wb_2"}, {"id": "p2", "name": "매립박스 2구 (Plastic)", "code": "9252-22", "img": "wb_3"}, {"id": "p3", "name": "매립박스 3구 (Plastic)", "code": "9253-22", "img": "wb_4"}, {"id": "p4", "name": "매립박스 4구 (Plastic)", "code": "9254-22", "img": "wb_5"}]};
+const IMAGES = {};
+
+/* ---------- 상태 ---------- */
+let state={material:DATA.materials[0].id, color:DATA.materials[0].colors[0].name,
+  gang:1, mods:[null], wallboxQty:{}};
+let cart=[]; let docType='quote'; let pickPos=0;
+
+const won=n=>'₩'+Math.round(n).toLocaleString('ko-KR');
+const matObj=()=>DATA.materials.find(m=>m.id===state.material);
+const colorObj=()=>{for(const m of DATA.materials){const c=m.colors.find(c=>c.name===state.color);if(c)return c;}};
+const priceObj=()=>DATA.prices[state.color];
+const funcByName=nm=>priceObj().functions.find(f=>f.name===nm);
+const maxGang=()=>5;
+const imgSrc=img=>(typeof IMAGES!=='undefined'&&img&&IMAGES[img])?IMAGES[img]:'';
+
+/* ---------- 벡터 렌더 (완전 선명, 연속 프레임) ---------- */
 function shadeHex(hex,amt){
   let c=(hex||'#cccccc').replace('#','');
   if(c.length===3)c=c.split('').map(x=>x+x).join('');
@@ -52,14 +355,12 @@ function shadeHex(hex,amt){
   const f=x=> amt>=0? x+(255-x)*amt : x*(1+amt);
   return '#'+[r,g,b].map(x=>Math.max(0,Math.min(255,Math.round(f(x)))).toString(16).padStart(2,'0')).join('');
 }
-
 function socketSVG(recess,edge,dark2){
   return `<circle cx="50" cy="50" r="34" fill="${recess}" stroke="${edge}" stroke-width="1.6"/>`+
     `<circle cx="50" cy="50" r="34" fill="none" stroke="rgba(0,0,0,.18)" stroke-width="3" opacity=".5"/>`+
     `<circle cx="36" cy="50" r="5.5" fill="${dark2}"/><circle cx="64" cy="50" r="5.5" fill="${dark2}"/>`+
     `<rect x="44" y="17" width="12" height="4.5" rx="2" fill="${edge}"/><rect x="44" y="78" width="12" height="4.5" rx="2" fill="${edge}"/>`;
 }
-
 function usbcPill(cx,cy,recess,edge){return `<rect x="${cx-14}" y="${cy-5.5}" width="28" height="11" rx="5.5" fill="${recess}" stroke="${edge}" stroke-width="1.2"/><rect x="${cx-9}" y="${cy-1.5}" width="18" height="3" rx="1.5" fill="${edge}"/>`;}
 /* 기능 그래픽만(모듈 몸체 없이) - 100x100 기준 */
 function faceGraphic(type,hex,dark){
@@ -83,29 +384,13 @@ function faceGraphic(type,hex,dark){
     case 'blank': default: return '';
   }
 }
-
-function faceGraphic(type,hex,dark){
+/* 썸네일용: 정사각형 모듈(거의 각진) + 그래픽 */
+function faceSVG(type,hex,dark){
   const edge=dark?'rgba(255,255,255,.30)':'rgba(0,0,0,.18)';
-  const soft=dark?'rgba(0,0,0,.4)':'rgba(0,0,0,.13)';
   const paddle=shadeHex(hex,dark?0.08:0.045);
-  const recess=shadeHex(hex,dark?-0.16:-0.11);
-  const dark2=dark?'#0c0c0c':'#3a3a3a';
-  switch(type){
-    case 'rocker': return '';
-    case 'rocker2': return `<line x1="50" y1="12" x2="50" y2="88" stroke="${soft}" stroke-width="2"/>`;
-    case 'rocker3': return `<line x1="35" y1="12" x2="35" y2="88" stroke="${soft}" stroke-width="2"/><line x1="65" y1="12" x2="65" y2="88" stroke="${soft}" stroke-width="2"/>`;
-    case 'rotary': return `<circle cx="50" cy="50" r="30" fill="${recess}" stroke="${edge}" stroke-width="1.4"/><circle cx="50" cy="50" r="22" fill="${paddle}" stroke="${edge}" stroke-width="1.2"/><circle cx="50" cy="50" r="2.5" fill="${edge}"/>`;
-    case 'socket': return socketSVG(recess,edge,dark2);
-    case 'socket_usb': return `<g transform="translate(50,56) scale(0.8) translate(-50,-50)">${socketSVG(recess,edge,dark2)}</g>`+usbcPill(50,18,recess,edge);
-    case 'usb': return usbcPill(50,38,recess,edge)+usbcPill(50,66,recess,edge);
-    case 'data': return `<rect x="32" y="32" width="36" height="27" rx="2" fill="${recess}" stroke="${edge}" stroke-width="1.4"/><rect x="42" y="59" width="16" height="10" rx="1.5" fill="${recess}" stroke="${edge}" stroke-width="1.2"/>`;
-    case 'tv': return `<circle cx="50" cy="50" r="22" fill="${recess}" stroke="${edge}" stroke-width="1.5"/><circle cx="50" cy="50" r="4.5" fill="${dark2}"/>`;
-    case 'speaker': return `<circle cx="36" cy="50" r="11" fill="${recess}" stroke="${edge}" stroke-width="1.3"/><circle cx="36" cy="50" r="4.5" fill="#c9a24a"/><circle cx="64" cy="50" r="11" fill="${recess}" stroke="${edge}" stroke-width="1.3"/><circle cx="64" cy="50" r="4.5" fill="#b5402f"/>`;
-    case 'hdmi': return `<path d="M28 41 l8 -10 h28 l8 10 v16 h-52 z" fill="${recess}" stroke="${edge}" stroke-width="1.4"/>`;
-    case 'blank': default: return '';
-  }
+  return `<rect x="4" y="4" width="92" height="92" rx="3" fill="${paddle}" stroke="${edge}" stroke-width="1.4"/>`+faceGraphic(type,hex,dark);
 }
-
+/* 외곽 프레임 + 중간선(모듈 칸) ; 다구는 모듈끼리 맞닿음 */
 function previewFrameSVG(hex,dark,types,interactive){
   const n=Math.max(1,types.length), m=120, fr=14;
   const W=fr*2+n*m, H=fr*2+m;
@@ -128,67 +413,269 @@ function previewFrameSVG(hex,dark,types,interactive){
     `${inner}</svg>`;
 }
 
-function colorMeta(key){for(const m of DATA.materials){const c=m.colors.find(c=>c.name===key);if(c)return{ko:c.ko,hex:c.hex,dark:c.dark,mat:m.name};}return{ko:key,hex:'#ccc',dark:false,mat:''};}
-function decodeReq(code){code=code.trim().replace(/^JS1-/,'');return JSON.parse(decodeURIComponent(escape(atob(code))));}
-function priceItem(it){
-  const P=DATA.prices[it.c]; if(!P) throw new Error('알 수 없는 색상: '+it.c);
-  const frame=(P.frame_ls990&&P.frame_ls990[it.g])||0;
-  let func=0, types=[], lines=[];
-  (it.m||[]).forEach(nm=>{const f=P.functions.find(x=>x.name===nm);
-    if(f){func+=f.price;types.push(f.type);lines.push({name:nm,price:f.price});}
-    else{types.push('blank');lines.push({name:nm+' (단가없음)',price:0});}});
-  let wb=0, wlist=[];
-  (it.w||[]).forEach(a=>{const w=DATA.wallbox.find(x=>x.id===a[0]);if(w){wb+=w.price*a[1];wlist.push({name:w.name,qty:a[1],price:w.price});}});
-  return {frame,func,wb,types,lines,wlist,unit:frame+func+wb};
+/* ---------- 렌더링 ---------- */
+function renderMaterials(){
+  document.getElementById('mtabs').innerHTML=DATA.materials.map(m=>
+    `<button class="mtab ${state.material===m.id?'on':''}" onclick="pickMaterial('${m.id}')">${m.name}</button>`).join('');
 }
-function run(){
-  const err=document.getElementById('err');err.textContent='';
-  let parsed;
-  try{parsed=decodeReq(document.getElementById('code').value);}
-  catch(e){err.textContent='코드를 해석할 수 없습니다. 올바른 구성 코드인지 확인하세요.';document.getElementById('out').innerHTML='';return;}
-  var items = Array.isArray(parsed)?parsed:(parsed.i||[]);
-  var info = (!Array.isArray(parsed)&&parsed.info)?parsed.info:{};
-  try{render(items,info);}catch(e){err.textContent='오류: '+e.message;}
+function renderColors(){
+  const m=matObj();
+  document.getElementById('swatches').innerHTML=m.colors.map(c=>
+    `<div class="sw ${state.color===c.name?'sel':''}" onclick="pickColor('${c.name}')">
+      <div class="dot" style="background:${c.hex}"></div><span>${c.ko}</span></div>`).join('');
+  document.getElementById('colorPick').textContent='· '+(colorObj()?colorObj().ko:'');
 }
-function render(items,info){
-  info=info||{};
+function renderGang(){
+  const mx=maxGang();
+  document.getElementById('gangbar').innerHTML=[1,2,3,4,5].map(g=>
+    `<button class="opt ${state.gang===g?'sel':''} ${g>mx?'disabled':''}" onclick="pickGang(${g})">
+      <div class="t">${g}</div><div class="d">${g}구</div></button>`).join('');
+}
+function renderBuilder(){
+  const c=colorObj();
+  const frameEl=document.getElementById('frame');
+  frameEl.style.background='transparent';frameEl.style.boxShadow='none';frameEl.style.padding='0';
+  const types=state.mods.map(mid=>mid?funcByName(mid).type:null);
+  frameEl.innerHTML=previewFrameSVG(c.hex,c.dark,types,true);
+  document.getElementById('posbtns').innerHTML=state.mods.map((mid,i)=>{
+    if(!mid) return `<button class="posbtn empty" onclick="openPicker(${i})"><div class="pi">${i+1}번 위치</div><div class="pn">＋ 기능 선택</div></button>`;
+    const f=funcByName(mid);
+    return `<button class="posbtn" onclick="openPicker(${i})"><div class="pi">${i+1}번 위치</div><div class="pn">${f.name}</div></button>`;
+  }).join('');
+}
+function renderWallbox(){
+  document.getElementById('wallboxOpts').innerHTML=DATA.wallbox.map(w=>{
+    const q=state.wallboxQty[w.id]||0;
+    return `<div class="wbopt ${q>0?'sel':''}">
+      <div class="wbinfo"><div class="t">${w.name}</div><div class="d">${w.code||''}</div></div>
+      <div class="stepper sm"><button onclick="setWb('${w.id}',-1)">−</button><span class="wbq">${q}</span><button onclick="setWb('${w.id}',1)">+</button></div>
+    </div>`;
+  }).join('');
+}
+
+/* ---------- 수량/검증 (단가 없음) ---------- */
+function wallboxCount(){return DATA.wallbox.reduce((a,w)=>a+(state.wallboxQty[w.id]||0),0);}
+function wallboxList(){return DATA.wallbox.filter(w=>(state.wallboxQty[w.id]||0)>0).map(w=>({id:w.id,name:w.name,qty:state.wallboxQty[w.id]}));}
+
+function validity(){
+  const missing=state.mods.some(m=>!m);
+  const noWall=wallboxCount()<1;
+  let msg='';
+  if(missing) msg='모든 위치의 기능을 선택해 주세요.';
+  else if(noWall) msg='매립박스를 1개 이상 선택해 주세요.';
+  return {ok:!missing&&!noWall,msg};
+}
+
+function renderQuote(){
+  const c=colorObj(),m=matObj();
+  const fn=state.mods.filter(x=>x).length;
+  document.getElementById('summ').innerHTML=
+    `<b>LS990</b> · ${c.ko} (${m.name})<br>프레임 ${state.gang}구 · 기능 ${fn}개 · 매립박스 ${wallboxCount()}개`;
+  const v=validity();
+  document.getElementById('warn').className='warn'+(v.ok?'':' show');
+  document.getElementById('warn').textContent=v.msg;
+  document.getElementById('addBtn').disabled=!v.ok;
+}
+
+/* ---------- 이벤트 ---------- */
+function pickMaterial(id){state.material=id;state.color=matObj().colors[0].name;afterColorChange();}
+function pickColor(nm){state.color=nm;afterColorChange();}
+function afterColorChange(){renderAll();}
+function pickGang(g){
+  if(g>maxGang())return;
+  state.gang=g;
+  while(state.mods.length<g)state.mods.push(null);
+  state.mods.length=g;
+  renderAll();
+}
+/* 기능 카테고리 분류 */
+const FCATS=[
+  {id:'switch',name:'스위치',types:['rocker','rocker2','rocker3']},
+  {id:'dimmer',name:'디머',types:['rotary']},
+  {id:'socket',name:'콘센트',types:['socket','socket_usb']},
+  {id:'usb',name:'USB충전',types:['usb']},
+  {id:'av',name:'통신·AV',types:['data','tv','speaker','hdmi']},
+  {id:'etc',name:'기타',types:['blank']},
+];
+const catOfType=t=>(FCATS.find(c=>c.types.includes(t))||FCATS[0]).id;
+let pickCat=null;
+function availCats(){const fns=priceObj().functions;return FCATS.filter(c=>fns.some(f=>c.types.includes(f.type)));}
+function openPicker(pos){
+  pickPos=pos;
+  document.getElementById('pickTitle').textContent=(pos+1)+'번 위치 기능 선택';
+  const avail=availCats();
+  const cur=state.mods[pos];
+  if(cur) pickCat=catOfType(funcByName(cur).type);
+  if(!pickCat||!avail.find(c=>c.id===pickCat)) pickCat=avail[0].id;
+  renderPickTabs();renderThumbs();
+  document.getElementById('pickOverlay').classList.add('on');
+}
+function renderPickTabs(){
+  const fns=priceObj().functions;
+  document.getElementById('ptabs').innerHTML=availCats().map(c=>{
+    const n=fns.filter(f=>c.types.includes(f.type)).length;
+    return `<button class="ptab ${pickCat===c.id?'on':''}" onclick="setPickCat('${c.id}')">${c.name}<b>${n}</b></button>`;
+  }).join('');
+}
+function setPickCat(id){pickCat=id;renderPickTabs();renderThumbs();}
+function renderThumbs(){
+  const c=colorObj();
+  const cat=FCATS.find(x=>x.id===pickCat);
+  const fns=priceObj().functions.filter(f=>cat.types.includes(f.type));
+  document.getElementById('thumbs').innerHTML=fns.map(f=>{
+    const vis=`<svg viewBox="0 0 100 100">${faceSVG(f.type,c.hex,c.dark)}</svg>`;
+    return `<div class="thumb ${state.mods[pickPos]===f.name?'sel':''}" onclick="selectFunc(${pickPos},'${f.name.replace(/'/g,"\\'")}')">
+      <div class="tc" style="background:${c.hex}">${vis}</div>
+      <div class="tn">${f.name}</div></div>`;}).join('');
+}
+function selectFunc(pos,nm){state.mods[pos]=nm;closePicker();renderBuilder();renderQuote();}
+function closePicker(){document.getElementById('pickOverlay').classList.remove('on');}
+function setWb(id,d){state.wallboxQty[id]=Math.max(0,(state.wallboxQty[id]||0)+d);renderWallbox();renderQuote();}
+function bumpQty(d){const e=document.getElementById('qty');e.value=Math.max(1,(parseInt(e.value)||1)+d);renderQuote();}
+function syncQty(){const e=document.getElementById('qty');e.value=Math.max(1,parseInt(e.value)||1);renderQuote();}
+
+function renderAll(){renderMaterials();renderColors();renderGang();renderBuilder();renderWallbox();renderQuote();}
+
+/* ---------- 장바구니 ---------- */
+function addToCart(){
+  if(!validity().ok)return;
+  const c=colorObj(),m=matObj();
+  const q=Math.max(1,parseInt(document.getElementById('qty').value)||1);
+  cart.push({colorKey:state.color,color:c.ko,material:m.name,colorHex:c.hex,colorDark:c.dark,
+    gang:state.gang,mods:state.mods.map(mid=>funcByName(mid).name),
+    modTypes:state.mods.map(mid=>funcByName(mid).type),
+    modImgs:state.mods.map(mid=>funcByName(mid).img),
+    wallbox:wallboxList(),qty:q});
+  renderCart();
+}
+function delItem(i){cart.splice(i,1);renderCart();}
+function renderCart(){
+  document.getElementById('cartCnt').textContent=cart.length+'건';
+  const list=document.getElementById('cartList');
+  if(!cart.length)list.innerHTML='<div class="empty">담은 항목이 없습니다.</div>';
+  else list.innerHTML=cart.map((it,i)=>`
+    <div class="citem"><div class="ct"><span>LS990 ${it.color} · ${it.gang}구 ×${it.qty}</span><button class="del" onclick="delItem(${i})">삭제</button></div>
+    <div class="cd">${it.material}<br>${it.mods.join(' · ')}${it.wallbox&&it.wallbox.length?'<br>매립박스: '+it.wallbox.map(w=>w.name.replace('매립박스 ','')+'×'+w.qty).join(', '):''}</div></div>`).join('');
+  document.getElementById('mbCart').textContent=cart.length+'건 담음';
+}
+
+/* ---------- 문서 ---------- */
+function buildDocItems(){
+  if(cart.length)return cart;
+  if(!validity().ok)return [];
+  const c=colorObj(),m=matObj();
+  return [{colorKey:state.color,color:c.ko,material:m.name,colorHex:c.hex,colorDark:c.dark,
+    gang:state.gang,mods:state.mods.map(mid=>funcByName(mid).name),
+    modTypes:state.mods.map(mid=>funcByName(mid).type),
+    modImgs:state.mods.map(mid=>funcByName(mid).img),wallbox:wallboxList(),
+    qty:Math.max(1,parseInt(document.getElementById('qty').value)||1)}];
+}
+function framePreviewHTML(it){
+  return `<div style="display:inline-block;max-width:320px">${previewFrameSVG(it.colorHex,it.colorDark,it.modTypes||[],false)}</div>`;
+}
+/* 구성 코드(단가 없음, 입력정보 포함) — 칸트라이팅 산정툴에서 단가+정보 자동 반영 */
+function encodeReq(items,info){
+  const p={i:items.map(it=>({c:it.colorKey,g:it.gang,m:it.mods,w:(it.wallbox||[]).map(w=>[w.id,w.qty]),q:it.qty})),info:info||{}};
+  return 'JS1-'+btoa(unescape(encodeURIComponent(JSON.stringify(p))));
+}
+let lastItems=[], lastNo='';
+function rval(id){var e=document.getElementById(id);return e?e.value.trim():'';}
+function metaVals(){return {c:rval('r_cust'),t:rval('r_contact'),s:rval('r_site')};}
+function updateCode(){var t=document.getElementById('reqcode');if(t)t.value=encodeReq(lastItems,metaVals());}
+function itemRows(items){
+  return items.map((it,i)=>{
+    let r=`<tr class="grp"><td colspan="2">${i+1}. LS990 · ${it.color} · ${it.material} · ${it.gang}구 ×${it.qty}세트</td></tr>`;
+    r+=`<tr><td>LS990 프레임 (${it.gang}구)</td><td class="num">1</td></tr>`;
+    it.mods.forEach(m=>{r+=`<tr><td>${m}</td><td class="num">1</td></tr>`;});
+    (it.wallbox||[]).forEach(w=>{r+=`<tr><td>${w.name}</td><td class="num">${w.qty}</td></tr>`;});
+    return r;
+  }).join('');
+}
+function reqInner(items,mode,info){
   const today=new Date().toLocaleDateString('ko-KR');
-  const no='Q-'+Date.now().toString().slice(-6);
-  let sub=0, blocks='';
-  items.forEach((it,i)=>{
-    const cm=colorMeta(it.c); const pr=priceItem(it); const line=pr.unit*it.q; sub+=line;
-    let det=`<tr><td>프레임 (${it.g}구)</td><td class="num">1</td><td class="num">${won(pr.frame)}</td><td class="num">${won(pr.frame)}</td></tr>`;
-    pr.lines.forEach(l=>{det+=`<tr><td>${l.name}</td><td class="num">1</td><td class="num">${won(l.price)}</td><td class="num">${won(l.price)}</td></tr>`;});
-    pr.wlist.forEach(w=>{det+=`<tr><td>${w.name}</td><td class="num">${w.qty}</td><td class="num">${won(w.price)}</td><td class="num">${won(w.price*w.qty)}</td></tr>`;});
-    blocks+=`<div class="setblock">
-      <div class="sethdr"><span>${i+1}. JUNG LS990 · ${cm.ko} · ${cm.mat} · ${it.g}구</span><span>세트 ×${it.q}</span></div>
-      <div class="prev"><div style="display:inline-block;max-width:280px">${previewFrameSVG(cm.hex,cm.dark,pr.types,false)}</div></div>
-      <table><thead><tr><th>구성 항목</th><th class="num">수량</th><th class="num">단가</th><th class="num">금액</th></tr></thead><tbody>
-      <tr class="grp"><td colspan="4">▸ 프레임 + 기능 모듈</td></tr>
-      ${det}
-      <tr class="setsub"><td colspan="3" class="num">세트 단가 (1세트당)</td><td class="num">${won(pr.unit)}</td></tr>
-      <tr class="setsub"><td colspan="3" class="num">소계 (× ${it.q}세트)</td><td class="num">${won(line)}</td></tr>
-      </tbody></table></div>`;
-  });
-  const vat=Math.round(sub*0.1), tot=sub+vat;
-  document.getElementById('out').innerHTML=`<div class="panel pdoc"><h2>견 적 서</h2>
-   <div class="meta"><div>문서번호: ${no}<br>수신: <input id="t_cust" class="fill" value="${(info.c||'').replace(/"/g,'&quot;')}" oninput="this.setAttribute('value',this.value)" placeholder="고객/회사명"> 귀하<br>연락처: <input class="fill" value="${(info.t||'').replace(/"/g,'&quot;')}" oninput="this.setAttribute('value',this.value)" placeholder="고객 연락처"><br>현장: <input class="fill" value="${(info.s||'').replace(/"/g,'&quot;')}" oninput="this.setAttribute('value',this.value)" placeholder="현장 / 프로젝트"></div>
-   <div style="text-align:right">작성일: ${today}<br>공급자: 칸트라이팅<br>담당: <input class="fill" style="min-width:170px" oninput="this.setAttribute('value',this.value)" placeholder="담당자 / 연락처"></div></div>
-   ${blocks}
-   <table class="grand"><tbody>
-   <tr><td class="num" style="width:78%">공급가액</td><td class="num">${won(sub)}</td></tr>
-   <tr><td class="num">부가세 (10%)</td><td class="num">${won(vat)}</td></tr>
-   <tr class="totrow"><td class="num">합계금액</td><td class="num">${won(tot)}</td></tr>
-   </tbody></table>
-   <div class="note">※ 단가는 JUNG 융스위치 단가표(KANT) 기준이며 VAT 별도입니다. 매립박스 구매 시 배선기구 설치용 피스가 포함됩니다.</div></div>
-   <div class="printbar"><button class="btn primary" onclick="printDoc()">PDF 저장</button></div>`;
+  const previews=items.map((it,i)=>
+    `<div style="text-align:center;flex:none">${framePreviewHTML(it)}
+     <div style="font-size:11px;color:#666;margin-top:5px">${i+1}. LS990 ${it.color} · ${it.gang}구 ×${it.qty}</div></div>`).join('');
+  const meta = mode==='screen'
+    ? `<div>문서번호: ${lastNo}<br>요청자: <input id="r_cust" class="fill" oninput="updateCode()" placeholder="이름 / 회사명"><br>연락처: <input id="r_contact" class="fill" oninput="updateCode()" placeholder="전화 / 이메일"></div>
+       <div style="text-align:right">작성일: ${today}<br>현장/프로젝트: <input id="r_site" class="fill" oninput="updateCode()" placeholder="현장명"></div>`
+    : `<div>문서번호: ${lastNo}<br>요청자: ${info.c||'________'}<br>연락처: ${info.t||'________'}</div>
+       <div style="text-align:right">작성일: ${today}<br>현장/프로젝트: ${info.s||'________'}</div>`;
+  const codeBox = mode==='screen'
+    ? `<div style="margin-top:20px;border-top:2px dashed var(--line);padding-top:16px">
+        <div style="font-weight:700;font-size:13px;margin-bottom:4px">구성 코드 (칸트라이팅 전송용)</div>
+        <div style="font-size:11.5px;color:var(--sub);margin-bottom:8px">아래 코드를 복사해 칸트라이팅에 보내시면 단가를 산정해 드립니다.</div>
+        <textarea id="reqcode" readonly style="width:100%;height:60px;font-size:11px;font-family:monospace;border:1px solid var(--line);border-radius:6px;padding:8px;resize:none">${encodeReq(items,info||{})}</textarea>
+        <button onclick="copyReq()" class="btn primary" style="width:auto;padding:9px 18px;margin-top:8px;font-size:13px">코드 복사</button></div>`
+    : '';
+  return `<div class="pdoc"><h1>견적 요청서</h1>
+    <div class="meta">${meta}</div>
+    <div style="margin:4px 0 16px"><div style="font-size:12px;font-weight:700;color:#444;margin-bottom:8px">구성 미리보기</div>
+      <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">${previews}</div></div>
+    <div style="font-size:12px;font-weight:700;color:#444;margin-bottom:6px">선택 품목</div>
+    <table><thead><tr><th>품목</th><th class="num">수량</th></tr></thead><tbody>${itemRows(items)}</tbody></table>
+    ${codeBox}</div>`;
 }
+function docHTML(){
+  lastItems=buildDocItems();
+  if(!lastItems.length)return '<div class="pdoc"><p style="color:#b5532b">구성을 완료(모든 위치 기능 + 매립박스)하거나 목록에 담은 뒤 만들어 주세요.</p></div>';
+  lastNo='REQ-'+Date.now().toString().slice(-6);
+  return reqInner(lastItems,'screen',{});
+}
+function copyReq(){updateCode();var t=document.getElementById('reqcode');if(!t)return;t.select();
+  try{navigator.clipboard.writeText(t.value);}catch(e){document.execCommand('copy');}
+  alert('구성 코드가 복사되었습니다. 칸트라이팅에 전달해 주세요.');}
+function openDoc(type){docType='quote';switchDoc();document.getElementById('overlay').classList.add('on');}
+function switchDoc(){document.getElementById('docBody').innerHTML=docHTML();}
+function closeDoc(){document.getElementById('overlay').classList.remove('on');}
+/* PDF 저장: 미리보기+품목만(코드 제외), 입력정보 반영 */
 function printDoc(){
-  var c=(document.getElementById('t_cust')||{}).value||'';
-  var d=new Date().toISOString().slice(0,10);
-  var orig=document.title;
-  document.title='융스위치단가'+(c?'_'+c:'')+'_'+d;
-  window.print();
-  setTimeout(function(){document.title=orig;},800);
-}
-</script></body></html>
+  if(!lastItems.length)return;
+  const info=metaVals();
+  const d=new Date().toISOString().slice(0,10);
+  const tt='융스위치견적요청'+(info.c?'_'+info.c:'')+'_'+d;
+  const w=window.open('','_blank');
+  w.document.write(`<html><head><meta charset="utf-8"><title>${tt}</title>
+  <style>body{font-family:-apple-system,"Noto Sans KR",sans-serif;padding:40px;color:#1a1a1a}h1{font-size:24px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px}th,td{border:1px solid #ccc;padding:7px 10px;vertical-align:top}
+  .num{text-align:right;width:70px}th{background:#f4f4f2}.grp td{background:#faf8f4;font-weight:700;font-size:11px}
+  .meta{display:flex;justify-content:space-between;margin:14px 0;font-size:13px;color:#555}</style></head>
+  <body>${reqInner(lastItems,'print',info)}</body></html>`);
+  w.document.close();w.focus();setTimeout(()=>w.print(),300);}
+
+function resetConfig(){state={material:DATA.materials[0].id,color:DATA.materials[0].colors[0].name,
+  gang:1,mods:[null],wallboxQty:{}};document.getElementById('qty').value=1;renderAll();}
+
+/* 상단 단계 탭: 클릭 이동 + 현재 단계 표시 */
+function goStep(n){var e=document.getElementById('step'+n);if(e)e.scrollIntoView({behavior:'smooth',block:'start'});}
+(function(){
+  function upd(){
+    var cur=1;
+    for(var n=1;n<=4;n++){var s=document.getElementById('step'+n);if(s&&s.getBoundingClientRect().top<=130)cur=n;}
+    document.querySelectorAll('.snav').forEach(function(b){b.classList.toggle('on',+b.dataset.s===cur);});
+  }
+  window.addEventListener('scroll',upd,{passive:true}); setTimeout(upd,100);
+})();
+
+renderAll();renderCart();
+
+/* 팝업(모바일바·기능선택·문서)을 페이지 최상위로 이동 — 아임웹 등 transform 컨테이너 안에서도 정상 표시 */
+(function(){var p=document.createElement('div');p.id='jungpop';
+  ['mbar','pickOverlay','overlay'].forEach(function(id){var e=document.getElementById(id);if(e)p.appendChild(e);});
+  document.body.appendChild(p);
+  /* 배경 클릭으로 닫기 */
+  var ov=document.getElementById('overlay'), pk=document.getElementById('pickOverlay');
+  if(ov)ov.addEventListener('click',function(e){if(e.target===ov)closeDoc();});
+  if(pk)pk.addEventListener('click',function(e){if(e.target===pk)closePicker();});
+  /* ESC로 닫기 */
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeDoc();closePicker();}});
+})();
+
+/* iframe 자동 높이: 부모(아임웹)로 높이 전송 */
+function postHeight(){try{parent.postMessage({jungHeight:Math.ceil(document.body.scrollHeight)},'*');}catch(e){}}
+window.addEventListener('load',postHeight);
+if(window.ResizeObserver){new ResizeObserver(postHeight).observe(document.body);}
+setInterval(postHeight,1000);
+</script>
+</body>
+</html>
