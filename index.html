@@ -172,7 +172,7 @@ function render(items,info){
   });
   const vat=Math.round(sub*0.1), tot=sub+vat;
   document.getElementById('out').innerHTML=`<div class="panel pdoc"><h2>견 적 서</h2>
-   <div class="meta"><div>문서번호: ${no}<br>수신: <input class="fill" value="${(info.c||'').replace(/"/g,'&quot;')}" oninput="this.setAttribute('value',this.value)" placeholder="고객/회사명"> 귀하<br>연락처: <input class="fill" value="${(info.t||'').replace(/"/g,'&quot;')}" oninput="this.setAttribute('value',this.value)" placeholder="고객 연락처"><br>현장: <input class="fill" value="${(info.s||'').replace(/"/g,'&quot;')}" oninput="this.setAttribute('value',this.value)" placeholder="현장 / 프로젝트"></div>
+   <div class="meta"><div>문서번호: ${no}<br>수신: <input id="t_cust" class="fill" value="${(info.c||'').replace(/"/g,'&quot;')}" oninput="this.setAttribute('value',this.value)" placeholder="고객/회사명"> 귀하<br>연락처: <input class="fill" value="${(info.t||'').replace(/"/g,'&quot;')}" oninput="this.setAttribute('value',this.value)" placeholder="고객 연락처"><br>현장: <input class="fill" value="${(info.s||'').replace(/"/g,'&quot;')}" oninput="this.setAttribute('value',this.value)" placeholder="현장 / 프로젝트"></div>
    <div style="text-align:right">작성일: ${today}<br>공급자: 칸트라이팅<br>담당: <input class="fill" style="min-width:170px" oninput="this.setAttribute('value',this.value)" placeholder="담당자 / 연락처"></div></div>
    ${blocks}
    <table class="grand"><tbody>
@@ -183,5 +183,12 @@ function render(items,info){
    <div class="note">※ 단가는 JUNG 융스위치 단가표(KANT) 기준이며 VAT 별도입니다. 매립박스 구매 시 배선기구 설치용 피스가 포함됩니다.</div></div>
    <div class="printbar"><button class="btn primary" onclick="printDoc()">PDF 저장</button></div>`;
 }
-function printDoc(){window.print();}
+function printDoc(){
+  var c=(document.getElementById('t_cust')||{}).value||'';
+  var d=new Date().toISOString().slice(0,10);
+  var orig=document.title;
+  document.title='융스위치단가'+(c?'_'+c:'')+'_'+d;
+  window.print();
+  setTimeout(function(){document.title=orig;},800);
+}
 </script></body></html>
