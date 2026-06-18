@@ -18,13 +18,24 @@
  .prev{display:flex;flex-wrap:wrap;gap:12px;margin:10px 0 16px}
  .prev .cap{font-size:11px;color:#666;text-align:center;margin-top:4px}
  .note{font-size:11px;color:#888;margin-top:12px;line-height:1.6}
+ .setblock{border:1px solid #e4e4e0;border-radius:10px;padding:14px;margin:14px 0}
+ .sethdr{font-weight:700;font-size:14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+ .sethdr span{font-size:12px;font-weight:600;color:#666;background:#f2f2ef;border-radius:6px;padding:2px 9px}
+ .grp td{background:#faf8f4;font-size:11px;color:#888;font-weight:600}
+ .setsub td{font-weight:700;background:#fafaf8}
+ .grand{margin-top:6px}
+ .printbar{margin-top:14px;text-align:right}
+ @media print{
+   body{padding:0;background:#fff}
+   #inputPanel,h1,.sub,.err,.printbar{display:none!important}
+   #out .panel{border:none;box-shadow:none;padding:0;margin:0}
+ }
 </style></head><body><div class="wrap">
 <h1>JUNG 융스위치 단가 산정툴 <span style="font-size:12px;background:#fbece6;color:#b5532b;border-radius:6px;padding:2px 8px">내부용</span></h1>
 <p class="sub">고객이 보낸 <b>구성 코드(JS1-...)</b>를 붙여넣고 산출하세요. 이 파일은 외부에 공개하지 마세요(단가 포함).</p>
-<div class="panel">
+<div class="panel" id="inputPanel">
  <textarea id="code" placeholder="여기에 구성 코드를 붙여넣으세요 (예: JS1-eyJ...)"></textarea>
- <div style="margin-top:10px"><button class="btn primary" onclick="run()">단가 산출</button>
- <button class="btn ghost" onclick="printDoc()">인쇄 / PDF</button></div>
+ <div style="margin-top:10px"><button class="btn primary" onclick="run()">단가 산출</button></div>
  <div class="err" id="err"></div>
 </div>
 <div id="out"></div>
@@ -138,23 +149,34 @@ function run(){
 function render(items){
   const today=new Date().toLocaleDateString('ko-KR');
   const no='Q-'+Date.now().toString().slice(-6);
-  let sub=0, prev='', rows='';
+  let sub=0, blocks='';
   items.forEach((it,i)=>{
     const cm=colorMeta(it.c); const pr=priceItem(it); const line=pr.unit*it.q; sub+=line;
-    prev+=`<div><div style="display:inline-block;max-width:300px">${previewFrameSVG(cm.hex,cm.dark,pr.types,false)}</div><div class="cap">${i+1}. LS990 ${cm.ko} \u00b7 ${it.g}\uad6c \u00d7${it.q}</div></div>`;
-    const wbtxt=pr.wlist.length?' / \ub9e4\ub9bd\ubc15\uc2a4: '+pr.wlist.map(w=>w.name.replace('\ub9e4\ub9bd\ubc15\uc2a4 ','')+'\u00d7'+w.qty).join(', '):'';
-    rows+=`<tr><td class="num">${i+1}</td><td>JUNG LS990 \u00b7 ${cm.ko}<br><span style="color:#888;font-size:11px">${cm.mat} \u00b7 ${it.g}\uad6c</span><br><span style="color:#888;font-size:11px">${(it.m||[]).join(' / ')}${wbtxt}</span></td><td class="num">${it.q}</td><td class="num">${won(pr.unit)}</td><td class="num">${won(line)}</td></tr>`;
+    let det=`<tr><td>프레임 (${it.g}구)</td><td class="num">1</td><td class="num">${won(pr.frame)}</td><td class="num">${won(pr.frame)}</td></tr>`;
+    pr.lines.forEach(l=>{det+=`<tr><td>${l.name}</td><td class="num">1</td><td class="num">${won(l.price)}</td><td class="num">${won(l.price)}</td></tr>`;});
+    pr.wlist.forEach(w=>{det+=`<tr><td>${w.name}</td><td class="num">${w.qty}</td><td class="num">${won(w.price)}</td><td class="num">${won(w.price*w.qty)}</td></tr>`;});
+    blocks+=`<div class="setblock">
+      <div class="sethdr"><span>${i+1}. JUNG LS990 · ${cm.ko} · ${cm.mat} · ${it.g}구</span><span>세트 ×${it.q}</span></div>
+      <div class="prev"><div style="display:inline-block;max-width:280px">${previewFrameSVG(cm.hex,cm.dark,pr.types,false)}</div></div>
+      <table><thead><tr><th>구성 항목</th><th class="num">수량</th><th class="num">단가</th><th class="num">금액</th></tr></thead><tbody>
+      <tr class="grp"><td colspan="4">▸ 프레임 + 기능 모듈</td></tr>
+      ${det}
+      <tr class="setsub"><td colspan="3" class="num">세트 단가 (1세트당)</td><td class="num">${won(pr.unit)}</td></tr>
+      <tr class="setsub"><td colspan="3" class="num">소계 (× ${it.q}세트)</td><td class="num">${won(line)}</td></tr>
+      </tbody></table></div>`;
   });
   const vat=Math.round(sub*0.1), tot=sub+vat;
-  document.getElementById('out').innerHTML=`<div class="panel pdoc"><h2>\uacac \uc801 \uc11c</h2>
-   <div class="meta"><div>\ubb38\uc11c\ubc88\ud638: ${no}<br>\uc218\uc2e0: ____________________ \uadc0\ud558</div>
-   <div style="text-align:right">\uc791\uc131\uc77c: ${today}<br>\uacf5\uae09\uc790: \uce78\ud2b8\ub77c\uc774\ud305</div></div>
-   <div class="prev">${prev}</div>
-   <table><thead><tr><th class="num">No</th><th>\ud488\ubaa9</th><th class="num">\uc218\ub7c9</th><th class="num">\ub2e8\uac00</th><th class="num">\uae08\uc561</th></tr></thead><tbody>${rows}
-   <tr><td colspan="4" class="num">\uacf5\uae09\uac00\uc561</td><td class="num">${won(sub)}</td></tr>
-   <tr><td colspan="4" class="num">\ubd80\uac00\uc138 (10%)</td><td class="num">${won(vat)}</td></tr>
-   <tr class="totrow"><td colspan="4" class="num">\ud569\uacc4\uae08\uc561</td><td class="num">${won(tot)}</td></tr></tbody></table>
-   <div class="note">\u203b \ub2e8\uac00\ub294 JUNG \uc735\uc2a4\uc704\uce58 \ub2e8\uac00\ud45c(KANT) \uae30\uc900, VAT \ubcc4\ub3c4.</div></div>`;
+  document.getElementById('out').innerHTML=`<div class="panel pdoc"><h2>견 적 서</h2>
+   <div class="meta"><div>문서번호: ${no}<br>수신: ____________________ 귀하</div>
+   <div style="text-align:right">작성일: ${today}<br>공급자: 칸트라이팅</div></div>
+   ${blocks}
+   <table class="grand"><tbody>
+   <tr><td class="num" style="width:78%">공급가액</td><td class="num">${won(sub)}</td></tr>
+   <tr><td class="num">부가세 (10%)</td><td class="num">${won(vat)}</td></tr>
+   <tr class="totrow"><td class="num">합계금액</td><td class="num">${won(tot)}</td></tr>
+   </tbody></table>
+   <div class="note">※ 단가는 JUNG 융스위치 단가표(KANT) 기준이며 VAT 별도입니다. 매립박스 구매 시 배선기구 설치용 피스가 포함됩니다.</div></div>
+   <div class="printbar"><button class="btn primary" onclick="printDoc()">인쇄 / PDF 저장</button></div>`;
 }
 function printDoc(){window.print();}
 </script></body></html>
