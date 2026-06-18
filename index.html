@@ -627,6 +627,12 @@ function resetConfig(){state={material:DATA.materials[0].id,color:DATA.materials
   gang:1,mods:[null],wallboxQty:{}};document.getElementById('qty').value=1;renderAll();}
 
 renderAll();renderCart();
+
+/* iframe 자동 높이: 부모(아임웹)로 높이 전송 */
+function postHeight(){try{parent.postMessage({jungHeight:Math.ceil(document.body.scrollHeight)},'*');}catch(e){}}
+window.addEventListener('load',postHeight);
+if(window.ResizeObserver){new ResizeObserver(postHeight).observe(document.body);}
+setInterval(postHeight,1000);
 </script>
 </body>
 </html>
