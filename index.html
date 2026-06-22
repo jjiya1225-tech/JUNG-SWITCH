@@ -18,7 +18,7 @@
  .prev{display:flex;flex-wrap:wrap;gap:12px;margin:10px 0 16px}
  .prev .cap{font-size:11px;color:#666;text-align:center;margin-top:4px}
  .pf{position:relative;display:inline-block;vertical-align:top;line-height:0;overflow:visible;max-width:100%}
- .pf .pf-fr{width:100%;height:auto;display:block;border-radius:3px}
+ .pf .pf-fr{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;display:block;border-radius:3px}
  .pf .pf-mod{position:absolute;object-fit:fill;z-index:1}
  .pf .pf-bw{z-index:3;object-fit:contain;object-position:bottom}
  .pf .pf-empty{position:absolute;display:flex;align-items:center;justify-content:center;color:rgba(0,0,0,.35);font-size:26px}
@@ -149,9 +149,10 @@ function photoFrame(colorKey,gang,modNames,interactive){
   }
   var fimg=IMG(ASSETS.frame[colorKey][gang]);
   var rects=ASSETS.layout[gang]||[];
-  /* 5구=폭100% 기준 비율폭 → 높이는 전 구수 동일, 절대 가로 안 넘침 */
+  /* 폭은 구 수 비율(5구=100%), 높이는 aspect-ratio로 확정 → 미리보기 안정 */
   var FRPCT=[0,22,41,60,79,100];
-  var html='<div class="pf" style="width:'+(FRPCT[gang]||100)+'%">';
+  var FRAR=[0,1.0,1.87,2.75,3.62,4.57];
+  var html='<div class="pf" style="width:'+(FRPCT[gang]||100)+'%;aspect-ratio:'+(FRAR[gang]||1)+'">';
   html+='<img class="pf-fr" src="'+fimg+'" alt="">';
   rects.forEach(function(r,i){
     var nm=(modNames||[])[i];
@@ -229,8 +230,7 @@ function render(items,info){
    <tr><td class="num" style="width:78%">공급가액</td><td class="num">${won(sub)}</td></tr>
    <tr><td class="num">부가세 (10%)</td><td class="num">${won(vat)}</td></tr>
    <tr class="totrow"><td class="num">합계금액</td><td class="num">${won(tot)}</td></tr>
-   </tbody></table>
-   <div class="note">※ 단가는 JUNG 융스위치 단가표(KANT) 기준이며 VAT 별도입니다.</div></div>
+   </tbody></table></div>
    <div class="printbar"><button class="btn primary" onclick="printDoc()">PDF 저장</button></div>`;
 }
 function printDoc(){
